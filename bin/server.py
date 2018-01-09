@@ -17,6 +17,48 @@ def hash_password(password, salt):
     return str(binascii.hexlify(raw_hash))
 
 
+# TODO (Aidan) This should be in a try catch
+def save_user_file(lines):
+    with open('../../users.txt', 'w') as pw_file:
+        pw_file.writelines(lines)
+
+
+def read_user_file():
+    try:
+        pw_file = open('../../users.txt', 'r')
+    except:
+        print('Error: Unable to locate users.txt')
+        exit()
+
+    pswds = {}
+    lns = list(pw_file.readlines())
+    rewrite = False
+    # <username> <password hash> <salt>
+    for index, line in enumerate(lns):
+        tokens = line.strip().split(maxsplit=3)
+
+        # New users just have a username in the text file
+        # We need to set a default password and salt
+        if len(tokens) == 1:
+            username = tokens[0]
+            salt = str(os.urandom(32))
+            digest = hash_password(username, salt)
+            lns[index] = '{0} {1} {2}\n'.format(username, digest, salt)
+            rewrite = True
+
+        else:
+            username = tokens[0]
+            digest = tokens[1]
+            salt = tokens[2]
+
+        pswds[username] = (digest, salt, index)
+
+    if rewrite:
+        save_user_file(lns)
+
+    return lns, pswds
+
+
 # Check arguments
 args = sys.argv
 if len(args) != 3:
@@ -24,40 +66,7 @@ if len(args) != 3:
     exit()
 
 # Read usernames and passwords from file.
-passwords = {}
-
-try:
-    pw_file = open('../../users.txt', 'r')
-except:
-    print('Error: Unable to locate users.txt')
-    exit()
-
-lines = list(pw_file.readlines())
-rewrite = False
-# <username> <password hash> <salt>
-for index, line in enumerate(lines):
-    tokens = line.strip().split(maxsplit=3)
-
-    # New users just have a username in the text file
-    # We need to set a default password and salt
-    if len(tokens) == 1:
-        username = tokens[0]
-        salt = str(os.urandom(32))
-        digest = hash_password(username, salt)
-        lines[index] = '{0} {1} {2}\n'.format(username, digest, salt)
-        rewrite = True
-
-    else:
-        username = tokens[0]
-        digest = tokens[1]
-        salt = tokens[2]
-
-    passwords[username] = (digest, salt)
-
-# TODO (Aidan) This should be in a try catch
-if rewrite:
-    with open('../../users.txt', 'w') as pw_file:
-        pw_file.writelines(lines)
+lines, passwords = read_user_file()
 
 # Configure socket parameters.
 try:
@@ -125,7 +134,19 @@ while True:
             except:
                 f_out.write('No grades available for {0}!\n'.format(clean_uname))
 
+            # User has a default password which they need to change
+            if hmac.compare_digest(passwords[clean_uname][0], hash_password(clean_uname, passwords[clean_uname][1])):
+                f_out.write('You must change your default password. Please enter a new password: ')
+                f_out.flush()
+                pw = f_in.readline().strip()
+                salt = str(os.urandom(32))
+                digest = hash_password(pw, salt)
+                lines[passwords[clean_uname][2]] = '{0} {1} {2}\n'.format(clean_uname, digest, salt)
+                save_user_file(lines)
+                lines, passwords = read_user_file()
+
         f_out.flush()
+
 
     # Terminate connection and clean up
     finally:
