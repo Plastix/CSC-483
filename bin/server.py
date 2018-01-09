@@ -4,9 +4,7 @@
 # Aidan Pieper
 
 import sys
-import os
 from socket import *
-import subprocess
 import ssl
 
 # Check arguments
@@ -92,14 +90,9 @@ while True:
             f_out.flush()
 
         else:
-            # Cat the student grade file in the directory back to client.
-            # WARNING: This is a terrible way to pass on the contents of a single file.
-            #          Never write code like this!!!
-            proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out, stdin=f_in, \
-                                    stderr=subprocess.STDOUT, shell=True)
-
-            # Wait for the process to complete.
-            proc.wait()
+            with open("grades_{0}".format(clean_uname), "r") as grades:
+                f_out.write(grades.read())
+                f_out.flush()
 
     # Terminate connection and clean up
     finally:
