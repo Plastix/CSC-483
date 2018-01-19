@@ -200,4 +200,4 @@ venv.bak/
 # End of https://www.gitignore.io/api/macos,python,pycharm
 
 
-text_pass.txt
+**/text_pass.txt
