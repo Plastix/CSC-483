@@ -1,4 +1,6 @@
 # crack.py
+# A very inefficient password cracker
+#
 # Aidan Pieper
 # CSC 483
 # Winter 2018
@@ -9,6 +11,7 @@ from hmac import compare_digest
 from binascii import hexlify, unhexlify
 import sys
 import time
+from collections import deque
 
 
 class Mode(Enum):
@@ -37,7 +40,28 @@ def break_password(mode, hash, salt, regex):
     password = None
     start_time = time.time()
     if mode == Mode.BRUTE_FORCE:
-        pass
+        strings = deque([list(chr(x)) for x in range(32, 127)])
+        found = False
+        while not found:
+            for lis in strings:  # Search accrued list of words
+                word = ''.join(lis)
+                if compare_pass(word, hash, salt):
+                    password = word
+                    found = True
+                    break
+                num += 1
+
+            if found:
+                break
+
+            new_strings = deque()
+            while len(strings) != 0:
+                lis = strings.popleft()
+                new_strings.extend([lis + list(chr(x)) for x in range(32, 127)])
+
+            strings = new_strings
+
+
     elif mode == Mode.DICTIONARY_ATTACK:
         with open('/usr/share/dict/words', 'r') as dictionary:
             for raw_word in dictionary:
