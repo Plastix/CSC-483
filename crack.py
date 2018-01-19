@@ -11,6 +11,7 @@ from hmac import compare_digest
 from binascii import hexlify, unhexlify
 import sys
 import time
+import itertools
 
 
 class Mode(Enum):
@@ -62,7 +63,21 @@ def break_password(mode, hash, salt, regex):
                 num += 1
 
     elif mode == Mode.PRIOR_KNOWLEDGE:
-        pass
+        stars = regex.count('*')
+        chars = (chr(x) for x in range(32, 127))
+        perms = itertools.product(chars, repeat=stars)  # Calculate all perms of stars length
+        for perm in perms:
+            j = 0
+            word = list(regex)
+            for i, x in enumerate(word):
+                if x == '*':
+                    word[i] = perm[j]
+                    j += 1
+            if compare_pass(''.join(word), hash, salt):
+                password = word
+                break
+            num += 1
+
     else:
         raise RuntimeError('Undefined mode {}!'.format(mode))
 
