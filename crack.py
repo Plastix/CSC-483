@@ -11,7 +11,6 @@ from hmac import compare_digest
 from binascii import hexlify, unhexlify
 import sys
 import time
-from collections import deque
 
 
 class Mode(Enum):
@@ -40,27 +39,18 @@ def break_password(mode, hash, salt, regex):
     password = None
     start_time = time.time()
     if mode == Mode.BRUTE_FORCE:
-        strings = deque([list(chr(x)) for x in range(32, 127)])
+        # Init with all 1 character passwords
+        strings = [chr(x) for x in range(32, 127)]
         found = False
         while not found:
-            for lis in strings:  # Search accrued list of words
-                word = ''.join(lis)
+            for word in strings:  # Search accrued list of words
                 if compare_pass(word, hash, salt):
                     password = word
                     found = True
                     break
                 num += 1
-
-            if found:
-                break
-
-            new_strings = deque()
-            while len(strings) != 0:
-                lis = strings.popleft()
-                new_strings.extend([lis + list(chr(x)) for x in range(32, 127)])
-
-            strings = new_strings
-
+                # Add all possible suffixes to current string to end of list
+                strings.extend((word + chr(x) for x in range(32, 127)))
 
     elif mode == Mode.DICTIONARY_ATTACK:
         with open('/usr/share/dict/words', 'r') as dictionary:
