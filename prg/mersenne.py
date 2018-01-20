@@ -7,7 +7,8 @@
 
 class Mersenne:
 
-    def __init__(self):
+    def __init__(self) -> None:
+        super().__init__()
         self.N = 624
         self.M = 397
         self.A = 0x9908b0df
@@ -16,7 +17,7 @@ class Mersenne:
         self.m = [0] * self.N
         self.mi = self.N
 
-    def setSeed(self, seed):
+    def set_seed(self, seed) -> None:
         self.m[0] = seed & 0xffffff
         i = 1
         while i < len(self.m):
@@ -24,7 +25,7 @@ class Mersenne:
             i += 1
         self.mi = self.N
 
-    def nextInt(self):
+    def next_int(self) -> int:
         if self.mi >= self.N:
             k = 0
             while k <= self.N - 1:
