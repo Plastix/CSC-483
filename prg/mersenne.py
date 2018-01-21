@@ -18,6 +18,7 @@ class Mersenne:
         self.mi = self.N
 
     def set_seed(self, seed) -> None:
+        self.__init__()
         self.m[0] = seed & 0xffffff
         i = 1
         while i < len(self.m):
@@ -41,4 +42,4 @@ class Mersenne:
         y = y ^ ((y << 7) & 0x9d2c5680)
         y = y ^ ((y << 15) & 0xefc60000)
         y = y ^ (y >> 18)
-        return y
+        return int(y)
