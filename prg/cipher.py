@@ -8,7 +8,7 @@
 # Honor code:
 # James and I worked together to figure out how to generate the correct number of bytes
 #
-from mersenne import Mersenne
+from mersenne import Mersenne, FastMersenne
 
 
 class StreamCipher:
@@ -51,11 +51,16 @@ class StreamCipher:
         while secret <= 0xffffff:
             try:
                 decrypt = self.decrypt(secret, ciphertext)
-                print("Brute forced ciphertext! ", decrypt)
-                break
+                return repr(decrypt)
             except UnicodeDecodeError:
                 pass
             secret += 1
 
         else:
-            print("Could not decrypt ciphertext!")
+            return None
+
+
+class FastStreamCipher(StreamCipher):
+    def __init__(self, init_vector) -> None:
+        super().__init__(init_vector)
+        self.prg = FastMersenne()
