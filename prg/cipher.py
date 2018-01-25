@@ -41,11 +41,21 @@ class StreamCipher:
         return n.to_bytes((n.bit_length() + 7) // 8, 'big')
 
     def encrypt(self, secret, plaintext):
-        return self.__xor_text(secret, plaintext.encode())
+        return self.__xor_text(secret, plaintext.encode('ascii'))
 
     def decrypt(self, secret, ciphertext):
-        return self.__xor_text(secret, ciphertext).decode()
+        return self.__xor_text(secret, ciphertext).decode('ascii')
 
-    # TODO (Aidan) Write me
     def eavesdrop(self, ciphertext):
-        pass
+        secret = 0
+        while secret <= 0xffffff:
+            try:
+                decrypt = self.decrypt(secret, ciphertext)
+                print("Brute forced ciphertext! ", decrypt)
+                break
+            except UnicodeDecodeError:
+                pass
+            secret += 1
+
+        else:
+            print("Could not decrypt ciphertext!")
