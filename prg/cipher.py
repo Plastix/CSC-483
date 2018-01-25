@@ -46,21 +46,20 @@ class StreamCipher:
     def decrypt(self, secret, ciphertext):
         return self.__xor_text(secret, ciphertext).decode('ascii')
 
-    def eavesdrop(self, ciphertext):
-        secret = 0
-        while secret <= 0xffffff:
-            try:
-                decrypt = self.decrypt(secret, ciphertext)
-                return repr(decrypt)
-            except UnicodeDecodeError:
-                pass
-            secret += 1
-
-        else:
-            return None
-
 
 class FastStreamCipher(StreamCipher):
     def __init__(self, init_vector) -> None:
         super().__init__(init_vector)
         self.prg = FastMersenne()
+
+    def eavesdrop(self, ciphertext):
+        secret = 0
+        while secret <= 0xffffff:
+            try:
+                decrypt = self.decrypt(secret, ciphertext)
+                return decrypt
+            except UnicodeDecodeError:
+                pass
+            secret += 1
+        else:
+            return None

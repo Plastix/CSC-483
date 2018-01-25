@@ -19,6 +19,7 @@ class Mersenne:
 
     def set_seed(self, seed) -> None:
         self.m[0] = seed & 0xffffff
+        self.m = [0] * self.N
         i = 1
         while i < len(self.m):
             self.m[i] = (69069 * self.m[i - 1]) & 0xffffffff
@@ -57,6 +58,7 @@ class FastMersenne:
         self.mi = 0
 
     def set_seed(self, seed) -> None:
+        self.m = [0] * self.N
         self.m[0] = seed & 0xffffff
         i = 1
         while i < len(self.m):

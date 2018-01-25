@@ -20,7 +20,7 @@ if __name__ == '__main__':
     start = time()
     brute_forced = cipher.eavesdrop(cipher_text)
     if brute_forced is not None:
-        print("Brute forced ciphertext!", brute_forced)
+        print("Found valid ASCII!", brute_forced)
     else:
         print("Could not brute force ciphertext!")
 
