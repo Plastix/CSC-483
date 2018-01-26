@@ -6,8 +6,7 @@ if __name__ == '__main__':
     secret = randint(2 ** 15, 2 ** 50)
     cipher = FastStreamCipher(randint(2 ** 15, 2 ** 50))
 
-    # text = 'This is a demo of a simple cipher.'
-    text = "Demo of cipher!"
+    text = 'This is a demo of a simple cipher.'
     print("Message: ", text)
 
     cipher_text = cipher.encrypt(secret, text)

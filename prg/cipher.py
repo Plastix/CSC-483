@@ -57,7 +57,13 @@ class FastStreamCipher(StreamCipher):
         while secret <= 0xffffff:
             try:
                 decrypt = self.decrypt(secret, ciphertext)
-                return decrypt
+                valid = True
+                for ch in decrypt:
+                    if ord(ch) < 32 or ord(ch) > 125:
+                        valid = False
+                        break
+                if valid:
+                    return decrypt
             except UnicodeDecodeError:
                 pass
             secret += 1
