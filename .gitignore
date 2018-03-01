@@ -1,0 +1,9 @@
+ledger.txt
+messages.txt
+miner.log
+server.log
+peers.txt
+private_keys.pem
+public_keys.pem
+.idea/
+__pycache__/
