@@ -4,6 +4,7 @@ import logging
 import traceback
 import sys
 
+from objects import parse_block, parse_message, Block, Message
 from blockchain_constants import *
 
 
@@ -23,6 +24,26 @@ class Blockchain:
         self.chain = []  # list of all valid blocks known to this chain.
         self.latest_block = None  # latest block mined by this blockchain.
         self.message_queue = queue.Queue()
+
+        self.log = logging.getLogger('blockchain')
+        self.log.setLevel(logging.DEBUG)
+
+        f_handler = logging.FileHandler('blockchain.log')
+        f_handler.setLevel(logging.DEBUG)
+
+        con_handler = logging.StreamHandler()
+        con_handler.setLevel(logging.WARNING)
+
+        # Using Matt's log output format for consistency
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        f_handler.setFormatter(formatter)
+        con_handler.setFormatter(formatter)
+
+        self.log.addHandler(f_handler)
+        self.log.addHandler(con_handler)
+
+        self.log.warning("=========== Blockchain logging started ==========")
+
         # TODO Define what a Blockchain object looks like
 
 
@@ -59,7 +80,8 @@ class Blockchain:
         This function is called by networking.py.
         """
 
-        #print(msg_str)
+        with open('messages.txt', 'w') as msg_file:
+            msg_file.write(msg_str)
 
         return False
 
@@ -76,7 +98,8 @@ class Blockchain:
         This function is called by networking.py.
         """
 
-        #print(block_str)
+        Block = parse_block(block_str)
+        print(str(Block))
 
         return False
 
