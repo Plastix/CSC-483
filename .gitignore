@@ -7,3 +7,4 @@ private_keys.pem
 public_keys.pem
 .idea/
 __pycache__/
+*.pyc
