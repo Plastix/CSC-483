@@ -22,3 +22,13 @@ PARENT_HASH = 1
 CREATE_TIME = 3
 BLOCK_MINER = 2
 MESSAGE_START = 4
+
+# Message spacing constants
+SENDER_KEY = 0
+MSG_BODY = 1
+MSG_SIG = 2
+
+# Message body spacing constants
+MSG_TIME = 0
+MSG_TEXT = 1
+MSG_PUB_KEY = 2

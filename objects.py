@@ -1,6 +1,7 @@
 """Parses and creates messages and blocks from strings."""
 import re
 import logging
+import binascii
 from binascii import hexlify, unhexlify
 
 from blockchain_constants import *
@@ -11,14 +12,56 @@ log = logging.getLogger('blockchain')
 class Message(object):
     """Represents a message on the chain."""
 
-    def __init__(self, arg):
+    def __init__(self, sender, create_time, message, signature, recipient=None):
         """
         Takes data from a parsed message, deciphers, and creates message.
 
-        Assume data passed in is formatted properly. Does not ensure blockchain
-        validity.
+        A Message can be either public or private. If public, it contains an
+        unencrypted message, whereas if it's private then it contains an
+        encrypted message and the public key of the recipient. All messages
+        also have the poster's public key, the time created, and a digital
+        signature from the poster.
+
+        WARNING: Constructor assumes data passed in is formatted properly and
+        does NOT ensure the message is valid with regard to the blockchain.
+
+        :param sender: The message sender's private key
+        :param create_time: Time the message was created
+        :param message: The text of the message being sent
+        :param signatue: A digital signature of the message by its sender
+        :param recipient: The public key of the recipient if message is private
+
+        :type sender: str
+        :type create_time: float
+        :type message: str
+        :type signature: str
+        :type posts: list
+
+        :rtype: Message
         """
-        self.arg = arg
+        self.sender = sender
+        self.create_time = create_time
+        self.message = message
+        self.signature = signature
+        self.recipient = recipient
+
+    def __str__(self):
+        ret_str = "Sender Key: {sender}\n" + \
+                  "Creation Time: {create}\n" + \
+                  "Message: {message}\n"
+        ret_str = ret_str.format(sender=self.sender,
+                                 create=self.create_time,
+                                 message=self.message)
+        if self.recipient:
+            ret_str += "Recipient Key: {recipient}\n"
+            ret_str = ret_str.format(recipient=self.recipient)
+        return ret_str
+
+    def __repr__(self):
+        body_str = "{time}:{text}".format(self.create_time, hexlify(self.message))
+        if self.recipient:
+            body_str += ":{recipient}".format(hexlify(self.recipient))
+        return "{}&{}&{}".format(hexlify(self.sender), body_str, hexlify(self.signature))
 
 
 class Block(object):
@@ -34,7 +77,7 @@ class Block(object):
         validly formatted messages.
 
         WARNING: Constructor assumes data passed in is formatted properly and
-        does NOT ensure the black is valid with regard to the blockchain.
+        does NOT ensure the block is valid with regard to the blockchain.
 
         :param nonce: Nonce at beginning of block
         :param parent: Hash of the parent block
@@ -94,7 +137,57 @@ def parse_message(msg_str):
     :type msg_str: str
     :rtype: Message
     """
-    
+
+    msg_parts = msg_str.split("&")
+    msg_body_parts = msg_parts[MSG_BODY].split(":")
+
+    if len(msg_parts) != 3:
+        log.warning("Error parsing message: Length %s invalid", len(msg_parts))
+        return None
+
+    if not 1 < len(msg_body_parts) < 3:
+        log.warning("Error parsing message: Body length %s invalid", len(msg_body_parts))
+        return None
+
+    try:
+        sender_key = unhexlify(msg_parts[SENDER_KEY]).decode()
+    except binascii.Error:
+        log.warning("Error parsing message: Invalid sender key: %s", msg_parts[SENDER_KEY])
+        return None
+    print(sender_key)
+
+    create_time = msg_body_parts[MSG_TIME]
+    try:
+        create_time = float(msg_body_parts[MSG_TIME])
+    except ValueError:
+        log.warning("Error parsing message: Invalid create time %s", create_time)
+        return None
+    print(create_time)
+
+    try:
+        message_str = unhexlify(msg_body_parts[MSG_TEXT]).decode()
+    except binascii.Error:
+        log.warning("Error parsing message: Invalid message string %s", msg_body_parts[MSG_TEXT])
+        return None
+    print(message_str)
+
+    if len(msg_body_parts) == 3:
+        try:
+            recipient_key = unhexlify(msg_body_parts[MSG_PUB_KEY]).decode()
+        except binascii.Error:
+            log.warning("Error parsing message: Invalid recipient key %s", msg_body_parts[MSG_PUB_KEY])
+            return None
+    else:
+        recipient_key = None
+
+    message_sig = msg_parts[MSG_SIG]
+    try:
+        message_sig = unhexlify(msg_parts[MSG_SIG])
+    except binascii.Error:
+        log.warning("Error parsing message: Invalid signature %s", msg_parts[MSG_SIG])
+        return None
+
+    return Message(sender_key, create_time, message_str, message_sig, recipient_key)
 
 
 def parse_block(block_str):
