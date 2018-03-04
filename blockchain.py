@@ -97,9 +97,14 @@ class Blockchain:
 
         This function is called by networking.py.
         """
-
         Block = parse_block(block_str)
-        print(str(Block))
+        if Block is not None:
+            print(str(Block))
+            self.log.debug("Added block:\n%s", Block)
+        else:
+            print("Block is none")
+            self.log.debug("Failed to add block:\n%s", block_str)
+
 
         return False
 

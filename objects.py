@@ -60,16 +60,17 @@ class Block(object):
         posts_str = "\n"
         for post in self.posts:
             posts_str += "  |--{post}\n".format(post=post)
-        return "Nonce: {nonce}\n" + \
-               "Parent Hash: {parent}\n" + \
-               "Creation Time: {create}\n" + \
-               "Miner Hash: {miner}\n" + \
-               "Posts: {posts}\n".format(nonce=self.nonce,
-                                         parent=self.parent_hash,
-                                         create=self.create_time,
-                                         miner=self.miner_pub_key,
-                                         posts=posts_str
-                                         )
+        ret_str = "Nonce: {nonce}\n" + \
+                  "Parent Hash: {parent}\n" + \
+                  "Creation Time: {create}\n" + \
+                  "Miner Hash: {miner}\n" + \
+                  "Posts: {posts}\n"
+        return ret_str.format(nonce=self.nonce,
+                              parent=self.parent_hash,
+                              create=self.create_time,
+                              miner=self.miner_pub_key,
+                              posts=posts_str
+                             )
 
     def __repr__(self):
         ret_str = hexlify(self.nonce) + "|"
@@ -82,7 +83,18 @@ class Block(object):
 
 
 def parse_message(msg_str):
-    pass
+    """
+    Parses the string form of a message into a Message object.
+
+    Takes in any string, and if the string is properly formatted returns a
+    corresponding Message object. If the string is not properly formatted, this
+    method returns False.
+
+    :param msg_str: The string representation of a block
+    :type msg_str: str
+    :rtype: Message
+    """
+    
 
 
 def parse_block(block_str):
@@ -103,31 +115,38 @@ def parse_block(block_str):
     """
     block_parts = block_str.split('|')
     if len(block_parts) != 4 + MSGS_PER_BLOCK:
+        log.warning("Error parsing block: Length %s invalid", len(block_parts))
         return None
 
+    nonce = block_parts[NONCE]
     try:
-        nonce = int(block_parts[NONCE], 16)
+        nonce = int(nonce, 16)
     except ValueError:
+        log.warning("Error parsing block: Invalid nonce %s", nonce)
         return None
 
     parent = block_parts[PARENT_HASH]
     if not is_hex(parent):
+        log.warning("Error parsing block: parent hash is not hex: %s", parent)
         return None
 
+    created = block_parts[CREATE_TIME]
     try:
         created = float(block_parts[CREATE_TIME])
     except ValueError:
+        log.warning("Error parsing block: Invalid creation time %s", created)
         return None
 
     miner = block_parts[BLOCK_MINER]
     if not is_hex(miner):
+        log.warning("Error parsing block: miner hash is not hex: %s", miner)
         return None
 
-    messages = list(filter(lambda x: x, map(parse_message, block_parts[MESSAGE_START:])))
+    messages = list(filter(lambda x: x is not None, map(parse_message, block_parts[MESSAGE_START:])))
 
     return Block(nonce, parent, created, miner, messages)
 
 
 def is_hex(hex_str):
     """Helper function to verify a string is a hex value."""
-    return re.fullmatch('[0-9a-f]', hex_str)
+    return re.fullmatch('[0-9a-f]+', hex_str)
