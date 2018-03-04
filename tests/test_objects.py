@@ -1,9 +1,14 @@
+import logging
 import unittest
+
 from objects import parse_block
 
 
 class TestParseMethods(unittest.TestCase):
-    pass
+    def test_to_string(self):
+        with open('tests/data/valid_block.txt', 'r') as data:
+            string = data.read()
+            self.assertTrue(repr(parse_block(string)) == string)
 
 
 parse_block_tests = [

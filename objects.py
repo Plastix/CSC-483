@@ -73,10 +73,10 @@ class Block(object):
                              )
 
     def __repr__(self):
-        ret_str = hexlify(self.nonce) + "|"
+        ret_str = hex(self.nonce)[2:] + "|"
         ret_str += self.parent_hash + "|"
-        ret_str += str(self.create_time) + "|"
-        ret_str += self.miner_pub_key
+        ret_str += self.miner_pub_key + "|"
+        ret_str += str(self.create_time)
         for post in self.posts:
             ret_str += "|" + repr(post)
         return ret_str
@@ -115,31 +115,31 @@ def parse_block(block_str):
     """
     block_parts = block_str.split('|')
     if len(block_parts) != 4 + MSGS_PER_BLOCK:
-        log.warning("Error parsing block: Length %s invalid", len(block_parts))
+        log.info("Error parsing block: Length %s invalid", len(block_parts))
         return None
 
     nonce = block_parts[NONCE]
     try:
         nonce = int(nonce, 16)
     except ValueError:
-        log.warning("Error parsing block: Invalid nonce %s", nonce)
+        log.info("Error parsing block: Invalid nonce %s", nonce)
         return None
 
     parent = block_parts[PARENT_HASH]
     if not is_hex(parent):
-        log.warning("Error parsing block: parent hash is not hex: %s", parent)
+        log.info("Error parsing block: parent hash is not hex: %s", parent)
         return None
 
     created = block_parts[CREATE_TIME]
     try:
         created = float(block_parts[CREATE_TIME])
     except ValueError:
-        log.warning("Error parsing block: Invalid creation time %s", created)
+        log.info("Error parsing block: Invalid creation time %s", created)
         return None
 
     miner = block_parts[BLOCK_MINER]
     if not is_hex(miner):
-        log.warning("Error parsing block: miner hash is not hex: %s", miner)
+        log.info("Error parsing block: miner hash is not hex: %s", miner)
         return None
 
     messages = list(filter(lambda x: x is not None, map(parse_message, block_parts[MESSAGE_START:])))
