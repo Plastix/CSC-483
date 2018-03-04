@@ -59,16 +59,12 @@ class TestBlockParsing(unittest.TestCase):
     def test_correct_pow(self):
         with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
             block = parse_block(data.read())
-            block.verify_pow()
-            # TODO
-            self.fail()
+            self.assertTrue(block.verify_pow())
 
     def test_wrong_pow(self):
         with open(TestBlockParsing.block_data_path + 'invalid_nonce.txt', 'r') as data:
             block = parse_block(data.read())
-            block.verify_pow()
-            # TODO
-            self.fail()
+            self.assertFalse(block.verify_pow())
 
 
 class TestMessageParsing(unittest.TestCase):

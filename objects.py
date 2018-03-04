@@ -132,9 +132,8 @@ class Block(object):
         return ret_str
 
     def verify_pow(self):
-        # TODO
-        block_hash = hashlib.sha512(repr(self)).hexdigest()
-        print(block_hash)
+        block_hash = hashlib.sha512(repr(self).encode()).hexdigest()
+        return block_hash.startswith('0' * PROOF_OF_WORK_HARDNESS)
 
 
 def parse_message(msg_str):
