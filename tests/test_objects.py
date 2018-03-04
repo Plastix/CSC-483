@@ -119,6 +119,16 @@ class TestMessageParsing(unittest.TestCase):
             with open(TestMessageParsing.message_data_path + "valid_public_sender_key.txt", 'r') as key:
                 self.assertEqual(message.sender, key.read())
 
+    def test_correct_signature(self):
+        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+            message = parse_message(data.read())
+            self.assertTrue(message.verify_signature())
+
+    def test_wrong_signature(self):
+        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+            message = parse_message(data.read())
+            self.assertFalse(message.verify_signature())
+
 
 TestBlockParsing.setup_tests()
 TestMessageParsing.setup_tests()

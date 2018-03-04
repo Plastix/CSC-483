@@ -5,6 +5,11 @@ import logging
 import binascii
 from binascii import hexlify, unhexlify
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+
 from blockchain_constants import *
 
 log = logging.getLogger('blockchain')
@@ -69,6 +74,25 @@ class Message(object):
                                             body=body_str,
                                             sig=hexlify(self.signature).decode()
                                             )
+
+    def get_signature_string(self):
+        # TODO Fix me!
+        string = str(self.create_time).encode() + b':' + hexlify(self.message)
+        if self.recipient:
+            string += b':' + hexlify(self.recipient)
+        return string
+
+    def verify_signature(self):
+        try:
+            public_key = serialization.load_pem_public_key(self.sender.encode(), default_backend())
+            public_key.verify(self.signature, self.get_signature_string(),
+                              padding.PSS(
+                                  mgf=padding.MGF1(hashes.SHA256()),
+                                  salt_length=padding.PSS.MAX_LENGTH),
+                              hashes.SHA256())
+            return True
+        except InvalidSignature:
+            return False
 
 
 class Block(object):
