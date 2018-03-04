@@ -10,13 +10,15 @@ BLOCK_TYPE = 1
 
 DEFAULT_PORT = 50000
 MAIN_HOST = "andersm2-macpro.union.edu"  # Test
-#MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
+# MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
 
 MSG_BUFFER_SIZE = 100
 MSGS_PER_BLOCK = 10
 PROOF_OF_WORK_HARDNESS = 5
 
+# Block spacing constants
 NONCE = 0
 PARENT_HASH = 1
 CREATE_TIME = 2
 BLOCK_MINER = 3
+MESSAGE_START = 4

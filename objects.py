@@ -7,6 +7,7 @@ from blockchain_constants import *
 
 log = logging.getLogger('blockchain')
 
+
 class Message(object):
     """Represents a message on the chain."""
 
@@ -29,7 +30,7 @@ class Block(object):
         A Block has a starting nonce which is used to generate the proof-of-work
         hardness, the hash of its parent Block, the time the Block was created,
         the hash of the Block miner's public key, and a list of the posts
-        attached to the Block. The list of posts is gauranteed to contain only
+        attached to the Block. The list of posts is guaranteed to contain only
         validly formatted messages.
 
         WARNING: Constructor assumes data passed in is formatted properly and
@@ -59,23 +60,23 @@ class Block(object):
         posts_str = "\n"
         for post in self.posts:
             posts_str += "  |--{post}\n".format(post=post)
-        ret_str = "Nonce: {nonce}\n" + \
-        "Parent Hash: {parent}\n" + \
-        "Creation Time: {create}\n" + \
-        "Miner Hash: {miner}\n" + \
-        "Posts: {posts}\n".format(nonce=self.nonce,
-                                  parent=self.parent_hash,
-                                  create=self.create_time,
-                                  miner=self.miner_pub_key,
-                                  posts=posts_str
-                                  )
+        return "Nonce: {nonce}\n" + \
+               "Parent Hash: {parent}\n" + \
+               "Creation Time: {create}\n" + \
+               "Miner Hash: {miner}\n" + \
+               "Posts: {posts}\n".format(nonce=self.nonce,
+                                         parent=self.parent_hash,
+                                         create=self.create_time,
+                                         miner=self.miner_pub_key,
+                                         posts=posts_str
+                                         )
 
     def __repr__(self):
         ret_str = hexlify(self.nonce) + "|"
         ret_str += self.parent_hash + "|"
-        ret_str += self.create_time + "|"
+        ret_str += str(self.create_time) + "|"
         ret_str += self.miner_pub_key
-        for post in posts:
+        for post in self.posts:
             ret_str += "|" + repr(post)
         return ret_str
 
@@ -93,7 +94,7 @@ def parse_block(block_str):
     method returns False. A properly formatted block string is '|' pipe
     delimited, with the first four parts being an int, a hex string, a float,
     and another hex string. This method also parses the accompanying messages,
-    only including proprely formatted messages in the final list of messages
+    only including properly formatted messages in the final list of messages
     attached to the block.
 
     :param block_str: The string representation of a block
@@ -122,7 +123,7 @@ def parse_block(block_str):
     if not is_hex(miner):
         return None
 
-    # messages = list(filter(lambda x: x, map(parse_message, block_parts[4:])))
+    messages = list(filter(lambda x: x, map(parse_message, block_parts[MESSAGE_START:])))
 
     return Block(nonce, parent, created, miner, messages)
 
@@ -130,10 +131,3 @@ def parse_block(block_str):
 def is_hex(hex_str):
     """Helper function to verify a string is a hex value."""
     return re.fullmatch('[0-9a-f]', hex_str)
-
-
-def main():
-    pass
-
-if __name__ == '__main__':
-    main()
