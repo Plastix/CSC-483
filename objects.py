@@ -53,7 +53,7 @@ class Block(object):
         self.nonce = nonce
         self.parent_hash = parent
         self.create_time = create_time
-        self.miner_pub_key = miner
+        self.miner_key_hash = miner
         self.posts = posts
 
     def __str__(self):
@@ -68,14 +68,14 @@ class Block(object):
         return ret_str.format(nonce=self.nonce,
                               parent=self.parent_hash,
                               create=self.create_time,
-                              miner=self.miner_pub_key,
+                              miner=self.miner_key_hash,
                               posts=posts_str
-                             )
+                              )
 
     def __repr__(self):
         ret_str = hex(self.nonce)[2:] + "|"
         ret_str += self.parent_hash + "|"
-        ret_str += self.miner_pub_key + "|"
+        ret_str += self.miner_key_hash + "|"
         ret_str += str(self.create_time)
         for post in self.posts:
             ret_str += "|" + repr(post)

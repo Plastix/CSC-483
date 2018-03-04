@@ -1,15 +1,6 @@
-import logging
 import unittest
 
 from objects import parse_block
-
-
-class TestParseMethods(unittest.TestCase):
-    def test_to_string(self):
-        with open('tests/data/valid_block.txt', 'r') as data:
-            string = data.read()
-            self.assertTrue(repr(parse_block(string)) == string)
-
 
 parse_block_tests = [
     ["parse_valid_block", "valid_block.txt", True],
@@ -18,7 +9,32 @@ parse_block_tests = [
     ["parse_empty", "empty.txt", False],
     ["parse_empty_nonce", "empty_nonce.txt", False],
     ["parse_bad_nonce", "bad_nonce.txt", False],
+    ["parse_empty_parent_hash", "empty_parent_hash.txt", False],
+    ["parse_bad_parent_hash", "bad_parent_hash.txt", False],
+    ["parse_no_messages", "no_messages.txt", False],
+    ["parse_empty_messages", "empty_messages.txt", False],
+    ["parse_empty_miner_id", "empty_miner_id.txt", False],
+    ["parse_bad_miner_id", "bad_miner_id.txt", False],
+    ["parse_empty_timestamp", "empty_timestamp.txt", False],
+    ["parse_bad_timestamp", "bad_timestamp.txt", False],
 ]
+
+
+class TestParseMethods(unittest.TestCase):
+    def test_to_string(self):
+        with open('tests/data/valid_block.txt', 'r') as data:
+            string = data.read()
+            self.assertEquals(repr(parse_block(string)), string)
+
+    def test_parsing_data(self):
+        with open('tests/data/valid_block.txt', 'r') as data:
+            block = parse_block(data.read())
+            print(block)
+            self.assertEquals(block.nonce, 280815619281315998298257152433917011173307790385)
+            self.assertEquals(block.parent_hash, "000000000000000000000000000000000000")
+            self.assertEquals(block.create_time, 1519773893.9249759)
+            self.assertEquals(block.miner_key_hash, "03586f81a493d12fc4c71a01d648f83ac5d544e7168f96dcc32fa6bd4d54992e")
+            # TODO Verify messages are correct
 
 
 def generate_block_test(file, result):
