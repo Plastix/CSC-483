@@ -1,5 +1,6 @@
 import unittest
 
+from blockchain_constants import MSGS_PER_BLOCK
 from objects import parse_block, parse_message
 
 
@@ -44,17 +45,16 @@ class TestBlockParsing(unittest.TestCase):
     def test_to_string(self):
         with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
             string = data.read()
-            self.assertEquals(repr(parse_block(string)), string)
+            self.assertEqual(repr(parse_block(string)), string)
 
     def test_parsing_data(self):
         with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
             block = parse_block(data.read())
-            print(block)
-            self.assertEquals(block.nonce, 280815619281315998298257152433917011173307790385)
-            self.assertEquals(block.parent_hash, "000000000000000000000000000000000000")
-            self.assertEquals(block.create_time, 1519773893.9249759)
-            self.assertEquals(block.miner_key_hash, "03586f81a493d12fc4c71a01d648f83ac5d544e7168f96dcc32fa6bd4d54992e")
-            # TODO Verify messages are correct
+            self.assertEqual(block.nonce, 280815619281315998298257152433917011173307790385)
+            self.assertEqual(block.parent_hash, "000000000000000000000000000000000000")
+            self.assertEqual(block.create_time, 1519773893.9249759)
+            self.assertEqual(block.miner_key_hash, "03586f81a493d12fc4c71a01d648f83ac5d544e7168f96dcc32fa6bd4d54992e")
+            self.assertEqual(len(block.posts), MSGS_PER_BLOCK)
 
     def test_correct_pow(self):
         with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
@@ -106,18 +106,18 @@ class TestMessageParsing(unittest.TestCase):
     def test_to_string(self):
         with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
             string = data.read()
-            self.assertEquals(repr(parse_message(string)), string)
+            self.assertEqual(repr(parse_message(string)), string)
 
     def test_parsing_data(self):
         with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
             message = parse_message(data.read())
-            self.assertEquals(message.create_time, 1520174648.2770298)
-            self.assertEquals(message.message, "    By sovereignty of nature. First he was")
-            self.assertEquals(message.recipient, None)
+            self.assertEqual(message.create_time, 1520174648.2770298)
+            self.assertEqual(message.message, "    By sovereignty of nature. First he was")
+            self.assertEqual(message.recipient, None)
             self.assertIsNotNone(message.signature)
 
             with open(TestMessageParsing.message_data_path + "valid_public_sender_key.txt", 'r') as key:
-                self.assertEquals(message.sender, key.read())
+                self.assertEqual(message.sender, key.read())
 
 
 TestBlockParsing.setup_tests()
