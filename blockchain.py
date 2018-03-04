@@ -99,10 +99,8 @@ class Blockchain:
         """
         block = parse_block(block_str)
         if block is not None:
-            print(repr(block))
             self.log.debug("Added block:\n%s", block)
         else:
-            print("Block is none")
             self.log.debug("Failed to add block:\n%s", block_str)
 
 

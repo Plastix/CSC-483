@@ -109,8 +109,15 @@ class TestMessageParsing(unittest.TestCase):
             self.assertEquals(repr(parse_message(string)), string)
 
     def test_parsing_data(self):
-        # TODO write this
-        self.fail()
+        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+            message = parse_message(data.read())
+            self.assertEquals(message.create_time, 1520174648.2770298)
+            self.assertEquals(message.message, "    By sovereignty of nature. First he was")
+            self.assertEquals(message.recipient, None)
+            self.assertIsNotNone(message.signature)
+
+            with open(TestMessageParsing.message_data_path + "valid_public_sender_key.txt", 'r') as key:
+                self.assertEquals(message.sender, key.read())
 
 
 TestBlockParsing.setup_tests()
