@@ -59,10 +59,16 @@ class Message(object):
         return ret_str
 
     def __repr__(self):
-        body_str = "{time}:{text}".format(self.create_time, hexlify(self.message))
+        body_str = "{time}:{text}".format(time=self.create_time,
+                                          text=hexlify(self.message.encode()).decode()
+                                          )
         if self.recipient:
-            body_str += ":{recipient}".format(hexlify(self.recipient))
-        return "{}&{}&{}".format(hexlify(self.sender), body_str, hexlify(self.signature))
+            body_str += ":{rcp}".format(rcp=hexlify(self.recipient.encode()).decode())
+
+        return "{send}&{body}&{sig}".format(send=hexlify(self.sender.encode()).decode(),
+                                            body=body_str,
+                                            sig=hexlify(self.signature).decode()
+                                            )
 
 
 class Block(object):
@@ -144,25 +150,37 @@ def parse_message(msg_str):
     :rtype: Message
     """
 
+    # Split the message
     msg_parts = msg_str.split("&")
-    msg_body_parts = msg_parts[MSG_BODY].split(":")
-
+    # Check message is appropriate length
     if len(msg_parts) != 3:
         log.warning("Error parsing message: Length %s invalid", len(msg_parts))
         return None
 
+    # Split the message body
+    msg_body_parts = msg_parts[MSG_BODY].split(":")
+    # Check the body is the right length
     if not 1 < len(msg_body_parts) < 3:
         log.warning("Error parsing message: Body length %s invalid", len(msg_body_parts))
         return None
 
+    # Get the message sender's public key
+    sender_key = msg_parts[SENDER_KEY]
+    # Check that it's not the empty string
+    if sender_key == '':
+        log.warning("Error parsing message: sender key is empty")
+        return None
+    # Unhexlify the sender key
     try:
-        sender_key = unhexlify(msg_parts[SENDER_KEY]).decode()
+        sender_key = unhexlify(sender_key).decode()
     except binascii.Error:
         log.warning("Error parsing message: Invalid sender key: %s", msg_parts[SENDER_KEY])
         return None
     print(sender_key)
 
+    # Get the message creation time
     create_time = msg_body_parts[MSG_TIME]
+    # Convert to a float
     try:
         create_time = float(msg_body_parts[MSG_TIME])
     except ValueError:
@@ -170,23 +188,39 @@ def parse_message(msg_str):
         return None
     print(create_time)
 
+    # Get the text of the message
+    message_str = msg_body_parts[MSG_TEXT]
     try:
-        message_str = unhexlify(msg_body_parts[MSG_TEXT]).decode()
+        message_str = unhexlify(message_str).decode()
     except binascii.Error:
         log.warning("Error parsing message: Invalid message string %s", msg_body_parts[MSG_TEXT])
         return None
     print(message_str)
 
+    # If the message is private, get the recipient's public key
     if len(msg_body_parts) == 3:
+        # Get the recipient's key
+        recipient_key = msg_body_parts[MSG_PUB_KEY]
+        # Check that its not empty
+        if recipient_key == '':
+            log.warning("Error parsing message: empty recipient key")
+            return None
+        # Then convert to a string
         try:
-            recipient_key = unhexlify(msg_body_parts[MSG_PUB_KEY]).decode()
+            recipient_key = unhexlify(recipient_key).decode()
         except binascii.Error:
-            log.warning("Error parsing message: Invalid recipient key %s", msg_body_parts[MSG_PUB_KEY])
+            log.warning("Error parsing message: Invalid recipient key %s", recipient_key)
             return None
     else:
         recipient_key = None
 
+    # Get the digital signature of the sender for the message
     message_sig = msg_parts[MSG_SIG]
+    # Check that it's not empty
+    if message_sig == '':
+        log.warning("Error parsing message: empty signature")
+        return None
+    # Turn it to a string
     try:
         message_sig = unhexlify(msg_parts[MSG_SIG])
     except binascii.Error:
