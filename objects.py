@@ -1,4 +1,5 @@
 """Parses and creates messages and blocks from strings."""
+import hashlib
 import re
 import logging
 import binascii
@@ -123,6 +124,11 @@ class Block(object):
         for post in self.posts:
             ret_str += "|" + repr(post)
         return ret_str
+
+    def verify_pow(self):
+        # TODO
+        block_hash = hashlib.sha512(repr(self)).hexdigest()
+        print(block_hash)
 
 
 def parse_message(msg_str):

@@ -56,6 +56,20 @@ class TestBlockParsing(unittest.TestCase):
             self.assertEquals(block.miner_key_hash, "03586f81a493d12fc4c71a01d648f83ac5d544e7168f96dcc32fa6bd4d54992e")
             # TODO Verify messages are correct
 
+    def test_correct_pow(self):
+        with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
+            block = parse_block(data.read())
+            block.verify_pow()
+            # TODO
+            self.fail()
+
+    def test_wrong_pow(self):
+        with open(TestBlockParsing.block_data_path + 'invalid_nonce.txt', 'r') as data:
+            block = parse_block(data.read())
+            block.verify_pow()
+            # TODO
+            self.fail()
+
 
 class TestMessageParsing(unittest.TestCase):
     message_data_path = 'tests/message_data/'
