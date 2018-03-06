@@ -93,6 +93,15 @@ class Message(object):
         return string
 
     def verify_signature(self):
+        """
+        Verifies the digital signature of the message.
+
+        This method verifies that the digital signature attached to the message
+        is valid, indicating that the message itself is both unaltered and was
+        sent by the specified sender given in the message string.
+
+        :rtype: bool
+        """
         try:
             public_key = serialization.load_pem_public_key(self.sender.encode(), default_backend())
             public_key.verify(self.signature, self.get_signature_string(),
