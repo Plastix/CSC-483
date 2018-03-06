@@ -125,7 +125,7 @@ class TestMessageParsing(unittest.TestCase):
             self.assertTrue(message.verify_signature())
 
     def test_wrong_signature(self):
-        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+        with open(TestMessageParsing.message_data_path + 'public_wrong_signature.txt', 'r') as data:
             message = parse_message(data.read())
             self.assertFalse(message.verify_signature())
 
