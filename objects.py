@@ -76,8 +76,18 @@ class Message(object):
                                             )
 
     def get_signature_string(self):
-        # TODO Fix me!
-        string = str(self.create_time).encode() + b':' + hexlify(self.message)
+        """
+        Gets the unsigned string representation of the body of the message.
+
+        This method builds a bytes-string which encodes all of the information
+        stored in the body of the message: its create time, its content, and
+        the intended recipient's public key, if the message is a private
+        message.
+
+        This method is used to verify the signature on the string.
+        :rytpe: bytes
+        """
+        string = str(self.create_time).encode() + b':' + hexlify(self.message.encode())
         if self.recipient:
             string += b':' + hexlify(self.recipient)
         return string
@@ -156,6 +166,14 @@ class Block(object):
         return ret_str
 
     def verify_pow(self):
+        """
+        Verifies Proof-of-Work for the Block.
+
+        This method checks whether the sha52 hash of the Block's string
+        generates a hexdigest which begins with PROOF_OF_WORK_HARDNESS 0s.
+
+        :rtype: bool
+        """
         block_hash = hashlib.sha512(repr(self).encode()).hexdigest()
         return block_hash.startswith('0' * PROOF_OF_WORK_HARDNESS)
 

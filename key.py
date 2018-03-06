@@ -1,8 +1,6 @@
-'''
-Manage the key
-J
-Load keys from file to do verification.
-'''
+"""
+Manage the keys and load keys from file to do verification.
+"""
 
 from blockchain import *
 from network import *
@@ -94,8 +92,3 @@ class Keys:
         if hash in self.pub_table:
             return self.pub_table[hash]
         return None
-
-
-
-
-
