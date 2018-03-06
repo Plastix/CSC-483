@@ -8,7 +8,7 @@ from objects import parse_block, parse_message, Block, Message
 from blockchain_constants import *
 
 
-class Blockchain:
+class Blockchain(object):
 
     def __init__(self):
         """
@@ -21,9 +21,6 @@ class Blockchain:
         blockchain_bbs.py creates a Blockchain object which it then passes to
         a Server object from network.py
         """
-        self.chain = []  # list of all valid blocks known to this chain.
-        self.latest_block = None  # latest block mined by this blockchain.
-        self.message_queue = queue.Queue()
 
         self.log = logging.getLogger('blockchain')
         self.log.setLevel(logging.DEBUG)
@@ -44,8 +41,6 @@ class Blockchain:
 
         self.log.warning("=========== Blockchain logging started ==========")
 
-        # TODO Define what a Blockchain object looks like
-
 
         # Use this lock to protect internal data of this class from the
         # multi-threaded server.  Wrap code which modifies the blockchain with
@@ -53,8 +48,10 @@ class Blockchain:
         # cause deadlock.
         self.lock = threading.Lock()
 
-
-        pass
+        self.blocks = {}  # dictionary of hash(block) -> BlockNode
+        self.block_tree = None  # Tree of BlockNodes, points to the root
+        self.latest_block = None  # latest block mined by this blockchain.
+        self.message_queue = queue.Queue()
 
     def get_message_queue_size(self):
         """
@@ -97,14 +94,30 @@ class Blockchain:
 
         This function is called by networking.py.
         """
-        block = parse_block(block_str)
-        if block is not None:
-            self.log.debug("Added block:\n%s", block)
-        else:
-            self.log.debug("Failed to add block:\n%s", block_str)
+        with self.lock:
+            block = parse_block(block_str)
+            if block is None:
+                self.log.debug("Block ill-formed")
+                return False
 
+            if not block.verify_pow():
+                self.log.debug("Block invalid")
+                return False
 
-        return False
+            if not block.parent_hash in self.blocks:
+                self.log.debug("Block has non-existent parent")
+                return False
+
+            if hash(block) in self.blocks:
+                self.log.debug("Block is a duplicate")
+                return False
+
+            parent_node = self.blocks[block.parent_hash]
+            block_node = BlockNode(block, parent_node)
+            self.blocks[hash(block)] = block_node
+            parent_node.add_child(block_node)
+
+            return True
 
     def get_new_block_str(self):
         """
@@ -130,8 +143,15 @@ class Blockchain:
 
         This function is called by networking.py.
         """
+        block_strs = []
+        next_nodes = [self.block_tree]
+        while len(next_nodes) > 0:
+            cur_node = next_nodes.pop(0)
+            next_nodes += cur_node.children
+            if cur_node.get_time > t:
+                block_strs.append(repr(cur_node.block))
 
-        return []
+        return block_strs
 
     def mine(self):
         """
@@ -151,3 +171,36 @@ class Blockchain:
 
         while True:
             pass
+
+
+class BlockNode(object):
+    """
+    Holds a single block in the Blockchain tree.
+
+    Contains the parent block if one exists and children blocks if they exist.
+    Each block must have exactly one parent unless it is the root node. The hash
+    of the Block in question is also considered the hash of the BlockNode.
+    """
+
+    def __init__(self, block, parent):
+        """
+        Construct the BlockNode given a Block and the BlockNode of its parent.
+
+        :param block: The Block which this node holds
+        :param parent: The parent BlockNode representing the parent Block
+        """
+        self.parent = parent
+        self.block = block
+        self.children = []
+
+    def __hash__(self):
+        return hash(self.block)
+
+    def add_child(self, child):
+        """Add a child BlockNode"""
+        self.children.append(child)
+
+    @property
+    def get_time(self):
+        """Return the Block's time of creation."""
+        return self.block.create_time
