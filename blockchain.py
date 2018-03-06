@@ -29,7 +29,7 @@ class Blockchain(object):
         f_handler.setLevel(logging.DEBUG)
 
         con_handler = logging.StreamHandler()
-        con_handler.setLevel(logging.WARNING)
+        con_handler.setLevel(logging.DEBUG)
 
         # Using Matt's log output format for consistency
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -52,6 +52,7 @@ class Blockchain(object):
         self.block_tree = None  # Tree of BlockNodes, points to the root
         self.latest_block = None  # latest block mined by this blockchain.
         self.message_queue = queue.Queue()
+        self.count = 0
 
     def get_message_queue_size(self):
         """
@@ -87,7 +88,7 @@ class Blockchain(object):
         Verifies then adds incoming blocks to the blockchain.
 
         This method takes a string containing a block received by the server
-        from a peer or a user.  The block may be illformed, a duplicate, or
+        from a peer or a user.  The block may be ill-formed, a duplicate, or
         invalid.  It first verifies that this is not the case, then adds the
         block to the blockchain and returns True. If the block is invalid, this
         method returns False.
@@ -104,7 +105,7 @@ class Blockchain(object):
                 self.log.debug("Block invalid")
                 return False
 
-            if not block.parent_hash in self.blocks:
+            if block.parent_hash not in self.blocks and not block.is_root():
                 self.log.debug("Block has non-existent parent")
                 return False
 
@@ -112,12 +113,28 @@ class Blockchain(object):
                 self.log.debug("Block is a duplicate")
                 return False
 
+            if block.is_root():
+                block_node = BlockNode(block, None)
+                self.blocks[hash(block)] = block_node
+                self.block_tree = block_node
+                self.log.debug("Added block as root")
+                return True
+
             parent_node = self.blocks[block.parent_hash]
             block_node = BlockNode(block, parent_node)
             self.blocks[hash(block)] = block_node
             parent_node.add_child(block_node)
+            print("Added block")
+            self.log.debug("Added block to blockchain")
 
             return True
+        # with self.lock:
+        #     if self.count < 5:
+        #         with open('blocks.txt', 'a') as b_file:
+        #             b_file.write(block_str + "\n")
+        #     print(self.count)
+        #     self.count += 1
+
 
     def get_new_block_str(self):
         """
@@ -144,13 +161,16 @@ class Blockchain(object):
         This function is called by networking.py.
         """
         block_strs = []
-        next_nodes = [self.block_tree]
-        while len(next_nodes) > 0:
-            cur_node = next_nodes.pop(0)
-            next_nodes += cur_node.children
-            if cur_node.get_time > t:
-                block_strs.append(repr(cur_node.block))
 
+        # if self.block_tree is None:
+        #     return block_strs
+        #
+        # next_nodes = [self.block_tree]
+        # while len(next_nodes) > 0:
+        #     cur_node = next_nodes.pop(0)
+        #     next_nodes += cur_node.children
+        #     if cur_node.get_time > t:
+        #         block_strs.append(repr(cur_node.block))
         return block_strs
 
     def mine(self):

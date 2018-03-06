@@ -149,6 +149,7 @@ class Block(object):
         self.miner_key_hash = miner
         self.posts = posts
         self.block_hash = hashlib.sha512(repr(self).encode()).hexdigest()
+        print("Created block: ", self.nonce)
 
     def __str__(self):
         posts_str = "\n"
@@ -188,6 +189,9 @@ class Block(object):
         :rtype: bool
         """
         return self.block_hash.startswith('0' * PROOF_OF_WORK_HARDNESS)
+
+    def is_root(self):
+        return int(self.parent_hash, 16) == 0
 
 
 def parse_message(msg_str):
