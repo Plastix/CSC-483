@@ -175,9 +175,6 @@ class Block(object):
             ret_str += "|" + repr(post)
         return ret_str
 
-    def __hash__(self):
-        return hash(self.block_hash)
-
     def verify_pow(self):
         """
         Verifies Proof-of-Work for the Block.

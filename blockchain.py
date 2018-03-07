@@ -208,9 +208,6 @@ class BlockNode(object):
         self.block = block
         self.children = []
 
-    def __hash__(self):
-        return hash(self.block)
-
     def add_child(self, child):
         """Add a child BlockNode"""
         self.children.append(child)
