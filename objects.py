@@ -148,8 +148,7 @@ class Block(object):
         self.create_time = create_time
         self.miner_key_hash = miner
         self.posts = posts
-        self.block_hash = hashlib.sha512(repr(self).encode()).hexdigest()
-        print("Created block: ", self.nonce)
+        self.block_hash = str(hashlib.sha512(repr(self).encode()).hexdigest())
 
     def __str__(self):
         posts_str = "\n"
@@ -177,7 +176,7 @@ class Block(object):
         return ret_str
 
     def __hash__(self):
-        return self.block_hash
+        return hash(self.block_hash)
 
     def verify_pow(self):
         """

@@ -41,7 +41,6 @@ class Blockchain(object):
 
         self.log.warning("=========== Blockchain logging started ==========")
 
-
         # Use this lock to protect internal data of this class from the
         # multi-threaded server.  Wrap code which modifies the blockchain with
         # "with self.lock:". Be careful not to nest these contexts or it will
@@ -109,32 +108,30 @@ class Blockchain(object):
                 self.log.debug("Block has non-existent parent")
                 return False
 
-            if hash(block) in self.blocks:
+            if block.block_hash in self.blocks:
                 self.log.debug("Block is a duplicate")
                 return False
 
             if block.is_root():
                 block_node = BlockNode(block, None)
-                self.blocks[hash(block)] = block_node
+                self.blocks[block.block_hash] = block_node
                 self.block_tree = block_node
                 self.log.debug("Added block as root")
-                return True
-
-            parent_node = self.blocks[block.parent_hash]
-            block_node = BlockNode(block, parent_node)
-            self.blocks[hash(block)] = block_node
-            parent_node.add_child(block_node)
-            print("Added block")
-            self.log.debug("Added block to blockchain")
+            else:
+                parent_node = self.blocks[block.parent_hash]
+                block_node = BlockNode(block, parent_node)
+                self.blocks[block.block_hash] = block_node
+                parent_node.add_child(block_node)
+                self.log.debug("Added block to blockchain")
 
             return True
-        # with self.lock:
-        #     if self.count < 5:
-        #         with open('blocks.txt', 'a') as b_file:
-        #             b_file.write(block_str + "\n")
-        #     print(self.count)
-        #     self.count += 1
 
+    # with self.lock:
+    #     if self.count < 5:
+    #         with open('blocks.txt', 'a') as b_file:
+    #             b_file.write(block_str + "\n")
+    #     print(self.count)
+    #     self.count += 1
 
     def get_new_block_str(self):
         """

@@ -66,6 +66,16 @@ class TestBlockParsing(unittest.TestCase):
             block = parse_block(data.read())
             self.assertFalse(block.verify_pow())
 
+    def test_parent_block(self):
+        with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
+            block = parse_block(data.read())
+            self.assertTrue(block.is_root())
+
+    def test_not_parent_block(self):
+        with open(TestBlockParsing.block_data_path + 'non_genesis_block.txt', 'r') as data:
+            block = parse_block(data.read())
+            self.assertFalse(block.is_root())
+
 
 class TestMessageParsing(unittest.TestCase):
     message_data_path = 'tests/message_data/'
