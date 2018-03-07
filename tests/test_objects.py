@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 
 from blockchain_constants import MSGS_PER_BLOCK
@@ -75,6 +76,13 @@ class TestBlockParsing(unittest.TestCase):
         with open(TestBlockParsing.block_data_path + 'non_genesis_block.txt', 'r') as data:
             block = parse_block(data.read())
             self.assertFalse(block.is_root())
+
+    def test_block_hash(self):
+        with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
+            string = data.read()
+            block = parse_block(string)
+            block_hash = str(hashlib.sha512(string.encode()).hexdigest())
+            self.assertEqual(block.block_hash, block_hash)
 
 
 class TestMessageParsing(unittest.TestCase):
