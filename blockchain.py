@@ -94,24 +94,24 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
+        block = parse_block(block_str)
+        if block is None:
+            self.log.debug("Block ill-formed")
+            return False
+
+        if not block.verify_pow():
+            self.log.debug("Block invalid")
+            return False
+
+        if block.parent_hash not in self.blocks and not block.is_root():
+            self.log.debug("Block has non-existent parent")
+            return False
+
+        if block.block_hash in self.blocks:
+            self.log.debug("Block is a duplicate")
+            return False
+
         with self.lock:
-            block = parse_block(block_str)
-            if block is None:
-                self.log.debug("Block ill-formed")
-                return False
-
-            if not block.verify_pow():
-                self.log.debug("Block invalid")
-                return False
-
-            if block.parent_hash not in self.blocks and not block.is_root():
-                self.log.debug("Block has non-existent parent")
-                return False
-
-            if block.block_hash in self.blocks:
-                self.log.debug("Block is a duplicate")
-                return False
-
             if block.is_root():
                 block_node = BlockNode(block, None)
                 self.blocks[block.block_hash] = block_node
@@ -159,15 +159,13 @@ class Blockchain(object):
         """
         block_strs = []
 
-        # if self.block_tree is None:
-        #     return block_strs
-        #
-        # next_nodes = [self.block_tree]
-        # while len(next_nodes) > 0:
-        #     cur_node = next_nodes.pop(0)
-        #     next_nodes += cur_node.children
-        #     if cur_node.get_time > t:
-        #         block_strs.append(repr(cur_node.block))
+        if self.block_tree is not None:
+            next_nodes = [self.block_tree]
+            while len(next_nodes) > 0:
+                cur_node = next_nodes.pop(0)
+                next_nodes += cur_node.children
+                if cur_node.get_time > t:
+                    block_strs.append(repr(cur_node.block))
         return block_strs
 
     def mine(self):
