@@ -141,19 +141,38 @@ class Blockchain(object):
             return False
 
         with self.lock:
-            if block.is_root():
-                block_node = BlockNode(block, None)
-                self.blocks[block.block_hash] = block_node
-                self.block_tree = block_node
-                self.log.debug("Added block as root")
-            else:
-                parent_node = self.blocks[block.parent_hash]
-                block_node = BlockNode(block, parent_node)
-                self.blocks[block.block_hash] = block_node
-                parent_node.add_child(block_node)
-                self.log.debug("Added block to blockchain")
+            return self._add_block(block)
 
-            return True
+    def _add_block(self, block, root=False):
+        """
+        Adds a Block object to the Blockchain and updates the chain.
+
+        The Block is put into a BlockNode and added as a child to its parent
+        BlockNode. Its Messages are added to the current messages list if the
+        parent is the latest block. If the parent is not the latest Block, we
+        traverse the BlockNode tree up from this new node and update our
+        message tracker with the messages therein.
+
+        WARNING: Certainly not thread safe.
+
+        :param block: The Block object to add
+        :return: Success of adding the Block
+        """
+        if block.is_root():
+            block_node = BlockNode(block, None)
+            self.blocks[block.block_hash] = block_node
+            self.block_tree = block_node
+            self.log.debug("Added block as root")
+        else:
+            parent_node = self.blocks[block.parent_hash]
+            block_node = BlockNode(block, parent_node)
+            self.blocks[block.block_hash] = block_node
+            parent_node.add_child(block_node)
+            self.log.debug("Added block to blockchain")
+
+        # TODO Message duplicate checking
+
+        return True
 
     def get_new_block_str(self):
         """
@@ -207,7 +226,20 @@ class Blockchain(object):
         """
 
         while True:
+            # Make sure we have enough new messages in the queue
+            # if self.message_queue.qsize() < MSGS_PER_BLOCK:
+            #     continue
+            #
+            # # Note that this is a list of Message objects
+            # message_list = list(self.message_queue.queue)[:10]
+            #
+            #
+            # mined_block = Block(nonce=0,
+            #                     parent=hash(self.latest_block),
+            #                     create_time=time.time(),
+            #                     miner=hashlib.sha256().hexdigest())
             pass
+
 
 
 class BlockNode(object):

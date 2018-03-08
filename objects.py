@@ -75,9 +75,6 @@ class Message(object):
                                             sig=hexlify(self.signature).decode()
                                             )
 
-    def __hash__(self):
-        return hash(repr(self))
-
     def get_signature_string(self):
         """
         Gets the unsigned string representation of the body of the message.
@@ -146,7 +143,7 @@ class Block(object):
         :type parent: str
         :type create_time: float
         :type miner: str
-        :type posts: list
+        :type posts: list of Messages
 
         :rtype: Block
         """
