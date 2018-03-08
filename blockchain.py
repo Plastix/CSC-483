@@ -47,7 +47,11 @@ class Blockchain(object):
         # cause deadlock.
         self.lock = threading.Lock()
 
-        self.blocks = {}  # dictionary of hash(block) -> BlockNode
+        self.messages = {}  # dictionary of hash(Message) -> BlockNode
+                            # TODO Change this to only hold messages in the
+                            # current chain.
+
+        self.blocks = {}  # dictionary of hash(Block) -> BlockNode
         self.block_tree = None  # Tree of BlockNodes, points to the root
         self.latest_block = None  # latest block mined by this blockchain.
         self.message_queue = queue.Queue()
@@ -77,10 +81,23 @@ class Blockchain(object):
         This function is called by networking.py.
         """
 
-        with open('messages.txt', 'w') as msg_file:
-            msg_file.write(msg_str)
+        message = parse_message(msg_str)
 
-        return False
+        # Verify that the message is not a duplicate
+        # TODO Improve this to only consider the current chain
+        if hash(message) in self.messages:
+            return False
+
+        # Verify that the message is properly signed
+        if not message.verify_signature():
+            return False
+
+        # TODO Decrypt private message to us
+
+        # Add message to message queue
+        self.message_queue.put(message, timeout=5)
+
+        return True
 
     def add_block_str(self, block_str):
         """

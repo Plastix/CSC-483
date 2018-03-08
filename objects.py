@@ -75,6 +75,9 @@ class Message(object):
                                             sig=hexlify(self.signature).decode()
                                             )
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def get_signature_string(self):
         """
         Gets the unsigned string representation of the body of the message.
@@ -112,6 +115,10 @@ class Message(object):
             return True
         except InvalidSignature:
             return False
+
+    def decrypt(self, priv_key):
+        # TODO Implement decyrption of private message
+        pass
 
 
 class Block(object):
