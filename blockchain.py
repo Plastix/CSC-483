@@ -160,15 +160,18 @@ class Blockchain(object):
         """
         if block.is_root():
             block_node = BlockNode(block, None)
-            self.blocks[block.block_hash] = block_node
             self.block_tree = block_node
             self.log.debug("Added block as root")
         else:
             parent_node = self.blocks[block.parent_hash]
             block_node = BlockNode(block, parent_node)
-            self.blocks[block.block_hash] = block_node
             parent_node.add_child(block_node)
-            self.log.debug("Added block to blockchain")
+
+        self.log.debug("Added block to blockchain")
+        self.blocks[block.block_hash] = block_node
+
+        # TODO Message/block tree updating
+
 
         # TODO Message duplicate checking
 
@@ -261,6 +264,9 @@ class BlockNode(object):
         self.parent = parent
         self.block = block
         self.children = []
+
+        # TODO Add node depth
+
 
     def add_child(self, child):
         """Add a child BlockNode"""
