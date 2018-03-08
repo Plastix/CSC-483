@@ -6,6 +6,8 @@ import sys
 import time
 import hashlib
 
+import os
+
 from objects import parse_block, parse_message, Block, Message
 from blockchain_constants import *
 from key import Keys
@@ -13,7 +15,7 @@ from key import Keys
 
 class Blockchain(object):
 
-    def __init__(self):
+    def __init__(self, ledger_file):
         """
         Responsible for initializing a Block object.
 
@@ -59,9 +61,32 @@ class Blockchain(object):
         self.block_tree = None  # Tree of BlockNodes, points to the root
         self.latest_block = None  # BlockNode to mine on
         self.mined_block = None  # latest block mined by this blockchain.
+        self.latest_time = 0  # Timestamp of latest_block
 
         self.messages = {}  # dictionary of Message -> boolean
         self.message_queue = queue.Queue()
+
+        self.ledger_file = ledger_file
+        self.load_saved_ledger()
+
+    def load_saved_ledger(self):
+        """
+        Reads saved block strings from local ledger.txt. This stops us from having to requery all peers to get the
+        entire version history. networking.py uses self.latest_time to do the correct fetch. This time is updated in
+        self.add_block_str
+        """
+        # Create empty ledger file if one dos not exist
+        if not os.path.exists(self.ledger_file):
+            self.log.debug("Creating empty ledger file!")
+            with open(self.ledger_file, 'w'):
+                pass
+
+        with open(self.ledger_file, 'r') as ledger:
+            blocks = ledger.read().strip().splitlines()
+            if len(blocks) != 0:
+                self.log.debug('Loading blocks from local ledger!')
+            for block_str in blocks:
+                self._add_block_str(block_str, False)
 
     def get_message_queue_size(self):
         """
@@ -112,18 +137,7 @@ class Blockchain(object):
 
         return True
 
-    def add_block_str(self, block_str):
-        """
-        Verifies then adds incoming blocks to the blockchain.
-
-        This method takes a string containing a block received by the server
-        from a peer or a user.  The block may be ill-formed, a duplicate, or
-        invalid.  It first verifies that this is not the case, then adds the
-        block to the blockchain and returns True. If the block is invalid, this
-        method returns False.
-
-        This function is called by networking.py.
-        """
+    def _add_block_str(self, block_str, write_to_ledger):
         block = parse_block(block_str)
         if block is None:
             self.log.debug("Block ill-formed")
@@ -142,7 +156,30 @@ class Blockchain(object):
             return False
 
         with self.lock:
-            return self._add_block(block)
+            success = self._add_block(block)
+
+            # Update ledger.txt with newly added block
+            if success and write_to_ledger:
+                # self.log.warning("Writing to ledger!")
+                with open(self.ledger_file, 'a') as ledger:
+                    ledger.write(repr(block) + "\n")
+
+            return success
+
+    def add_block_str(self, block_str):
+        """
+        Verifies then adds incoming blocks to the blockchain.
+
+        This method takes a string containing a block received by the server
+        from a peer or a user.  The block may be ill-formed, a duplicate, or
+        invalid.  It first verifies that this is not the case, then adds the
+        block to the blockchain and returns True. If the block is invalid, this
+        method returns False.
+
+        This function is called by networking.py.
+        """
+
+        return self._add_block_str(block_str, True)
 
     def _add_block(self, block):
         """
@@ -169,6 +206,7 @@ class Blockchain(object):
             self.block_tree = block_node
             self.log.debug("Added block as root")
             self.latest_block = block_node
+            self.latest_time = block.create_time
         else:
             parent_node = self.blocks[block.parent_hash]
             block_node = BlockNode(block, parent_node)
@@ -179,6 +217,7 @@ class Blockchain(object):
             # Check if the new block makes a longer chain and switch to it
             if block_node.depth > self._get_current_depth():
                 self.latest_block = block_node
+                self.latest_time = block.create_time
 
             # We moved branches, update message table
             if self.latest_block.block.parent_hash != old_latest:

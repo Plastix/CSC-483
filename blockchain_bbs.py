@@ -8,12 +8,11 @@ from time import sleep
 
 
 def main():
-    
-    blockchain = Blockchain()
+    blockchain = Blockchain(LEDGER_FILE)
     blockchain_thread = threading.Thread(target=blockchain.mine)
     # blockchain_thread.daemon = True
     blockchain_thread.start()
-    
+
     server = Server(blockchain, True, True, True)
     server.run()
     # Main thread is server thread
