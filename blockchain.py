@@ -44,25 +44,24 @@ class Blockchain(object):
 
         self.log.warning("=========== Blockchain logging started ==========")
 
+        self.keys = Keys(private_key_file=PRIVATE_KEY_FILE,
+                         pub_key_file=PUBLIC_KEY_FILE,
+                         key_directory=KEY_DIRECTORY
+                         )
+
         # Use this lock to protect internal data of this class from the
         # multi-threaded server.  Wrap code which modifies the blockchain with
         # "with self.lock:". Be careful not to nest these contexts or it will
         # cause deadlock.
         self.lock = threading.Lock()
 
-        self.messages = []
-
-        self.blocks = {}  # dictionary of hash(Block) -> BlockNode
+        self.blocks = {}  # dictionary of Block.hash -> BlockNode
         self.block_tree = None  # Tree of BlockNodes, points to the root
         self.latest_block = None  # BlockNode to mine on
         self.mined_block = None  # latest block mined by this blockchain.
-        self.message_queue = queue.Queue()
-        self.count = 0
 
-        self.keys = Keys(private_key_file=PRIVATE_KEY_FILE,
-                         pub_key_file=PUBLIC_KEY_FILE,
-                         key_directory=KEY_DIRECTORY
-                         )
+        self.messages = {}  # dictionary of Message -> boolean
+        self.message_queue = queue.Queue()
 
     def get_message_queue_size(self):
         """
@@ -102,6 +101,8 @@ class Blockchain(object):
 
         # Verify that the message is not a duplicate
         with self.lock:
+            # TODO Don't add a message to the queue that isn't already in the queue
+            # This only checks if messages are in the current blockchain
             if message in self.messages:
                 self.log.debug("Duplicate message rejected")
                 return False
@@ -143,7 +144,7 @@ class Blockchain(object):
         with self.lock:
             return self._add_block(block)
 
-    def _add_block(self, block, root=False):
+    def _add_block(self, block):
         """
         Adds a Block object to the Blockchain and updates the chain.
 
@@ -158,24 +159,59 @@ class Blockchain(object):
         :param block: The Block object to add
         :return: Success of adding the Block
         """
+
+        # Block contains at least one duplicate message so don't add it
+        if any(map(self._is_duplicate_message, block.posts)):
+            return False
+
         if block.is_root():
             block_node = BlockNode(block, None)
             self.block_tree = block_node
             self.log.debug("Added block as root")
+            self.latest_block = block_node
         else:
             parent_node = self.blocks[block.parent_hash]
             block_node = BlockNode(block, parent_node)
             parent_node.add_child(block_node)
 
+            old_latest = self.latest_block.block.block_hash
+
+            # Check if the new block makes a longer chain and switch to it
+            if block_node.depth > self._get_current_depth():
+                self.latest_block = block_node
+
+            # We moved branches, update message table
+            if self.latest_block.block.parent_hash != old_latest:
+                self._reinit_message_table(block.parent_hash)
+
+        # Add all new posts to message table
+        self._add_block_msgs(block)
+
         self.log.debug("Added block to blockchain")
         self.blocks[block.block_hash] = block_node
 
-        # TODO Message/block tree updating
-
-
-        # TODO Message duplicate checking
-
         return True
+
+    def _add_block_msgs(self, block):
+        for msg in block.posts:
+            self.messages[repr(msg)] = True
+
+    def _reinit_message_table(self, parent_hash):
+        self.messages.clear()
+        block_node = self.blocks[parent_hash]
+
+        while block_node is not None:
+            self._add_block_msgs(block_node.block)
+            block_node = block_node.parent
+
+    def _is_duplicate_message(self, message):
+        msg_str = repr(message)
+        if message in self.messages:
+            return self.messages[msg_str]
+        return False
+
+    def _get_current_depth(self):
+        return self.latest_block.depth if self.latest_block is not None else -1
 
     def get_new_block_str(self):
         """
@@ -244,7 +280,6 @@ class Blockchain(object):
             pass
 
 
-
 class BlockNode(object):
     """
     Holds a single block in the Blockchain tree.
@@ -254,7 +289,7 @@ class BlockNode(object):
     of the Block in question is also considered the hash of the BlockNode.
     """
 
-    def __init__(self, block, parent):
+    def __init__(self, block: Block, parent: object) -> object:
         """
         Construct the BlockNode given a Block and the BlockNode of its parent.
 
@@ -264,9 +299,7 @@ class BlockNode(object):
         self.parent = parent
         self.block = block
         self.children = []
-
-        # TODO Add node depth
-
+        self.depth = 0 if parent is None else parent.depth + 1
 
     def add_child(self, child):
         """Add a child BlockNode"""
