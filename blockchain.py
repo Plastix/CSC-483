@@ -62,7 +62,7 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        return 0
+        return self.message_queue.qsize()
 
     def add_message_str(self, msg_str):
         """
@@ -126,13 +126,6 @@ class Blockchain(object):
 
             return True
 
-    # with self.lock:
-    #     if self.count < 5:
-    #         with open('blocks.txt', 'a') as b_file:
-    #             b_file.write(block_str + "\n")
-    #     print(self.count)
-    #     self.count += 1
-
     def get_new_block_str(self):
         """
         Get the latest mined block if one exists.
@@ -144,8 +137,7 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-
-        return None
+        return self.latest_block
 
     def get_all_block_strs(self, t):
         """
