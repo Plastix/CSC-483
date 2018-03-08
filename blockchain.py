@@ -3,9 +3,12 @@ import threading
 import logging
 import traceback
 import sys
+import time
+import hashlib
 
 from objects import parse_block, parse_message, Block, Message
 from blockchain_constants import *
+from key import Keys
 
 
 class Blockchain(object):
@@ -47,15 +50,19 @@ class Blockchain(object):
         # cause deadlock.
         self.lock = threading.Lock()
 
-        self.messages = {}  # dictionary of hash(Message) -> BlockNode
-                            # TODO Change this to only hold messages in the
-                            # current chain.
+        self.messages = []
 
         self.blocks = {}  # dictionary of hash(Block) -> BlockNode
         self.block_tree = None  # Tree of BlockNodes, points to the root
-        self.latest_block = None  # latest block mined by this blockchain.
+        self.latest_block = None  # BlockNode to mine on
+        self.mined_block = None  # latest block mined by this blockchain.
         self.message_queue = queue.Queue()
         self.count = 0
+
+        self.keys = Keys(private_key_file=PRIVATE_KEY_FILE,
+                         pub_key_file=PUBLIC_KEY_FILE,
+                         key_directory=KEY_DIRECTORY
+                         )
 
     def get_message_queue_size(self):
         """
@@ -83,19 +90,24 @@ class Blockchain(object):
 
         message = parse_message(msg_str)
 
-        # Verify that the message is not a duplicate
-        # TODO Improve this to only consider the current chain
-        if hash(message) in self.messages:
+        # Make sure message string was properly formed
+        if message is None:
+            self.log.debug("Ill-formed message string")
             return False
 
         # Verify that the message is properly signed
         if not message.verify_signature():
+            self.log.debug("Invalidly signed message string")
             return False
 
-        # TODO Decrypt private message to us
+        # Verify that the message is not a duplicate
+        with self.lock:
+            if message in self.messages:
+                self.log.debug("Duplicate message rejected")
+                return False
 
         # Add message to message queue
-        self.message_queue.put(message, timeout=5)
+        self.message_queue.put(message)
 
         return True
 
@@ -154,7 +166,8 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        return self.latest_block
+        with self.lock:
+            return repr(self.mined_block) if self.mined_block else None
 
     def get_all_block_strs(self, t):
         """

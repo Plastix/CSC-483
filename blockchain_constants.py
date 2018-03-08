@@ -32,3 +32,8 @@ MSG_SIG = 2
 MSG_TIME = 0
 MSG_TEXT = 1
 MSG_PUB_KEY = 2
+
+# Key files
+PUBLIC_KEY_FILE = 'public_keys.pem'
+PRIVATE_KEY_FILE = 'private_keys.pem'
+KEY_DIRECTORY = 'key_directory.pem'
