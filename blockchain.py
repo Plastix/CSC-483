@@ -15,7 +15,7 @@ from key import Keys
 
 class Blockchain(object):
 
-    def __init__(self, ledger_file):
+    def __init__(self, ledger_file, message_file):
         """
         Responsible for initializing a Block object.
 
@@ -30,6 +30,7 @@ class Blockchain(object):
         self.log = logging.getLogger('blockchain')
         self.log.setLevel(logging.DEBUG)
 
+        # TODO rename to miner.log
         f_handler = logging.FileHandler('blockchain.log')
         f_handler.setLevel(logging.DEBUG)
 
@@ -51,6 +52,10 @@ class Blockchain(object):
                          key_directory=KEY_DIRECTORY
                          )
 
+        self.message_file = message_file
+        self.ledger_file = ledger_file
+        self._create_empty_files()
+
         # Use this lock to protect internal data of this class from the
         # multi-threaded server.  Wrap code which modifies the blockchain with
         # "with self.lock:". Be careful not to nest these contexts or it will
@@ -66,20 +71,29 @@ class Blockchain(object):
         self.messages = {}  # dictionary of Message -> boolean
         self.message_queue = queue.Queue()
 
-        self.ledger_file = ledger_file
-        self.load_saved_ledger()
+        self._load_saved_ledger()
 
-    def load_saved_ledger(self):
-        """
-        Reads saved block strings from local ledger.txt. This stops us from having to requery all peers to get the
-        entire version history. networking.py uses self.latest_time to do the correct fetch. This time is updated in
-        self.add_block_str
-        """
+    def _create_empty_files(self):
         # Create empty ledger file if one dos not exist
         if not os.path.exists(self.ledger_file):
             self.log.debug("Creating empty ledger file!")
             with open(self.ledger_file, 'w'):
                 pass
+
+        if not os.path.exists(self.message_file):
+            self.log.debug("Creating empty message file!")
+            with open(self.message_file, 'w'):
+                pass
+
+        # Clear message file
+        open(self.message_file, 'w').close()
+
+    def _load_saved_ledger(self):
+        """
+        Reads saved block strings from local ledger.txt. This stops us from having to requery all peers to get the
+        entire version history. networking.py uses self.latest_time to do the correct fetch. This time is updated in
+        self.add_block_str
+        """
 
         with open(self.ledger_file, 'r') as ledger:
             blocks = ledger.read().strip().splitlines()
@@ -225,6 +239,7 @@ class Blockchain(object):
 
         # Add all new posts to message table
         self._add_block_msgs(block)
+        self._write_new_messages(block)
 
         self.log.debug("Added block to blockchain")
         self.blocks[block.block_hash] = block_node
@@ -235,13 +250,25 @@ class Blockchain(object):
         for msg in block.posts:
             self.messages[repr(msg)] = True
 
+    def _write_new_messages(self, block):
+        with open(self.message_file, 'a') as message_file:
+            message_file.write("\n".join(block.decrypt_messages(self.keys)))
+
     def _reinit_message_table(self, parent_hash):
         self.messages.clear()
         block_node = self.blocks[parent_hash]
 
+        messages = []
         while block_node is not None:
             self._add_block_msgs(block_node.block)
             block_node = block_node.parent
+            messages.extend(block_node.block.decrypt_messages(self.keys))
+
+        messages.reverse()
+        string = '\n'.join(messages)
+
+        with open(self.message_file, 'w') as message_file:
+            message_file.write(string)
 
     def _is_duplicate_message(self, message):
         msg_str = repr(message)

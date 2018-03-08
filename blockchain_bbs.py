@@ -8,7 +8,7 @@ from time import sleep
 
 
 def main():
-    blockchain = Blockchain(LEDGER_FILE)
+    blockchain = Blockchain(LEDGER_FILE, MESSAGE_FILE)
     blockchain_thread = threading.Thread(target=blockchain.mine)
     # blockchain_thread.daemon = True
     blockchain_thread.start()

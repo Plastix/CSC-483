@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from blockchain_constants import *
+from key import Keys
 
 log = logging.getLogger('blockchain')
 
@@ -113,9 +114,30 @@ class Message(object):
         except InvalidSignature:
             return False
 
-    def decrypt(self, priv_key):
-        # TODO Implement decyrption of private message
-        pass
+    def decrypt(self, private_key):
+        """
+        This assumes that the passed in private key is the key of self.recipient
+        :param private_key:
+        :return:
+        """
+        # TODO Write a test for this
+        decrypted_bytes = private_key.decypt(self.message, padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH))
+
+        return decrypted_bytes.decode()
+
+    def get_message(self, key_manager: Keys):
+        if self.recipient is None:
+            return self.message
+
+        private_key = key_manager.look_up_private_keys(self.recipient)
+        # We can decrypt the message (it is sent to us)
+        if private_key is not None:
+            return self.decrypt(private_key)
+
+        # Return encrypted ciphertext
+        return self.message
 
 
 class Block(object):
@@ -192,6 +214,9 @@ class Block(object):
 
     def is_root(self):
         return int(self.parent_hash, 16) == 0
+
+    def decrypt_messages(self, key_manager: Keys):
+        return map(lambda post: post.get_message(key_manager), self.posts)
 
 
 def parse_message(msg_str):

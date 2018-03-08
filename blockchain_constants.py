@@ -39,3 +39,4 @@ PRIVATE_KEY_FILE = 'private_keys.pem'
 KEY_DIRECTORY = 'key_directory.pem'
 
 LEDGER_FILE = 'ledger.txt'
+MESSAGE_FILE = 'messages.txt'
