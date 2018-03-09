@@ -229,9 +229,8 @@ class Block(object):
         return int(self.parent_hash, 16) == 0
 
     def decrypt_messages(self, key_manager: Keys):
-        # TODO Write a test for this
-        return filter(lambda post: post is not None,
-                      map(lambda post: post.get_message(key_manager), self.posts))
+        return list(filter(lambda post: post is not None,
+                           map(lambda post: post.get_message(key_manager), self.posts)))
 
 
 def parse_message(msg_str):

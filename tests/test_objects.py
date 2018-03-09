@@ -5,6 +5,10 @@ from blockchain_constants import MSGS_PER_BLOCK
 from key import Keys
 from objects import parse_block, parse_message
 
+private = "tests/key_data/private_keys.pem"
+public = "tests/key_data/public_keys.pem"
+directory = "tests/key_data/key_directory.pem"
+
 
 class TestBlockParsing(unittest.TestCase):
     block_data_path = 'tests/block_data/'
@@ -85,6 +89,23 @@ class TestBlockParsing(unittest.TestCase):
             block_hash = str(hashlib.sha512(string.encode()).hexdigest())
             self.assertEqual(block.block_hash, block_hash)
 
+    def test_decrypt_public_messages(self):
+        with open(TestBlockParsing.block_data_path + 'valid_block.txt', 'r') as data:
+            string = data.read()
+            block = parse_block(string)
+            key_manager = get_test_key_manager()
+
+            msg_list = ['Project Gutenberg’s The Complete Works of William Shakespeare, by William', 'Shakespeare',
+                        'This eBook is for the use of anyone anywhere in the United States and',
+                        'most other parts of the world at no cost and with almost no restrictions',
+                        'whatsoever.  You may copy it, give it away or re-use it under the terms',
+                        'of the Project Gutenberg License included with this eBook or online at',
+                        'www.gutenberg.org.  If you are not located in the United States, you’ll',
+                        'have to check the laws of the country where you are located before using', 'this ebook.',
+                        'See at the end of this file: * CONTENT NOTE (added in 2017) *']
+
+            self.assertEqual(msg_list, block.decrypt_messages(key_manager))
+
 
 class TestMessageParsing(unittest.TestCase):
     message_data_path = 'tests/message_data/'
@@ -101,10 +122,6 @@ class TestMessageParsing(unittest.TestCase):
         ["parse_empty_message_string", "empty_message_string.txt", True],
         ["parse_bad_message_string", "bad_message_string.txt", False],
     ]
-
-    private = "tests/key_data/private_keys.pem"
-    public = "tests/key_data/public_keys.pem"
-    directory = "tests/key_data/key_directory.pem"
 
     @staticmethod
     def generate_message_test(file, result):
@@ -156,7 +173,7 @@ class TestMessageParsing(unittest.TestCase):
         with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
             message = parse_message(data.read())
 
-            key_manager = Keys(TestMessageParsing.private, TestMessageParsing.public, TestMessageParsing.directory)
+            key_manager = get_test_key_manager()
             msg_str = message.get_message(key_manager)
             self.assertEqual("    By sovereignty of nature. First he was", msg_str)
 
@@ -176,10 +193,13 @@ class TestMessageParsing(unittest.TestCase):
         with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
             message = parse_message(data.read())
 
-            key_manager = Keys(TestMessageParsing.private, TestMessageParsing.public, TestMessageParsing.directory)
+            key_manager = get_test_key_manager()
             msg_str = message.decrypt(key_manager.privatekey_eg)
             self.assertIsNone(msg_str)
 
+
+def get_test_key_manager():
+    return Keys(private, public, directory)
 
 
 TestBlockParsing.setup_tests()
