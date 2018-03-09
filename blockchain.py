@@ -192,8 +192,11 @@ class Blockchain(object):
 
     def _update_latest_pointers(self, block_node):
         if block_node.depth > self._get_current_depth():
-            self.second_longest_chain = self.latest_block
-            self.latest_time = block_node.create_time
+
+            if block_node.parent != self.latest_block:
+                self.second_longest_chain = self.latest_block
+
+            self.latest_time = block_node.get_time
             self.latest_block = block_node
         elif block_node.depth > self._get_fork_depth():
             self.second_longest_chain = block_node
