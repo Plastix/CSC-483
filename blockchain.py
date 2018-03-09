@@ -1,22 +1,19 @@
+import hashlib
+import logging
+import os
 import queue
 import random
 import threading
-import logging
-import traceback
-import sys
 import time
-import hashlib
 
-import os
-
-from objects import parse_block, parse_message, Block, Message
 from blockchain_constants import *
 from key import Keys
+from objects import parse_block, parse_message, Block
 
 
 class Blockchain(object):
 
-    def __init__(self, ledger_file, message_file):
+    def __init__(self, ledger_file, message_file, stats_file):
         """
         Responsible for initializing a Block object.
 
@@ -54,6 +51,7 @@ class Blockchain(object):
 
         self.message_file = message_file
         self.ledger_file = ledger_file
+        self.stats_file = stats_file
         self._create_empty_files()
 
         # Use this lock to protect internal data of this class from the
@@ -67,6 +65,8 @@ class Blockchain(object):
         self.latest_block = None  # BlockNode to mine on
         self.mined_block = None  # latest block mined by this blockchain.
         self.latest_time = 0  # Timestamp of latest_block
+        self.total_blocks = 0  # Total blocks in our blockchain
+        self.readable_messages = 0  # Number of messages we can read
 
         self.messages = {}  # dictionary of Message -> boolean
         self.message_queue = queue.Queue()
@@ -75,18 +75,19 @@ class Blockchain(object):
 
     def _create_empty_files(self):
         # Create empty ledger file if one dos not exist
-        if not os.path.exists(self.ledger_file):
-            self.log.debug("Creating empty ledger file!")
-            with open(self.ledger_file, 'w'):
-                pass
+        self._create_empty_file(self.ledger_file)
 
-        if not os.path.exists(self.message_file):
-            self.log.debug("Creating empty message file!")
-            with open(self.message_file, 'w'):
-                pass
-
+        self._create_empty_file(self.message_file)
         # Clear message file
         open(self.message_file, 'w').close()
+
+        self._create_empty_file(self.stats_file)
+
+    def _create_empty_file(self, file):
+        if not os.path.exists(file):
+            self.log.debug("Creating empty file %s!", file)
+            with open(file, 'w'):
+                pass
 
     def _load_saved_ledger(self):
         """
@@ -237,11 +238,16 @@ class Blockchain(object):
         self.log.debug("Added block to blockchain")
         self.blocks[block.block_hash] = block_node
 
+        self.total_blocks += 1
+
         # Update ledger.txt with newly added block
         if write_to_ledger:
             # self.log.warning("Writing to ledger!")
             with open(self.ledger_file, 'a') as ledger:
                 ledger.write(repr(block) + "\n")
+
+        if self.total_blocks % 10 == 0:
+            self._write_stats_file()
 
         return True
 
@@ -252,7 +258,10 @@ class Blockchain(object):
     def _write_new_messages(self, block):
         with open(self.message_file, 'a') as message_file:
             message_file.write("\n")
-            message_file.write("\n".join(block.decrypt_messages(self.keys)))
+
+            messages = block.decrypt_messages(self.keys)
+            self.readable_messages += len(messages)
+            message_file.write("\n".join(messages))
 
     def _reinit_message_table(self, parent_hash):
         self.messages.clear()
@@ -265,6 +274,7 @@ class Blockchain(object):
             messages.extend(block_node.block.decrypt_messages(self.keys))
 
         messages.reverse()
+        self.readable_messages = len(messages)
         string = '\n'.join(messages)
 
         with open(self.message_file, 'w') as message_file:
@@ -298,6 +308,14 @@ class Blockchain(object):
                 self.mined_block = None
                 return string
             return None
+
+    def _write_stats_file(self):
+        with open(self.stats_file, 'w') as stats:
+            stats.write("Readable messages: %s\n" % self.readable_messages)
+            stats.write("Longest chain: %d\n" % self.latest_block.depth)
+            stats.write("Stale blocks: %d\n" % (self.total_blocks - self.latest_block.depth))
+            # TODO Implement longest fork stats
+            stats.write("Longest fork: %d\n" % 0)
 
     def get_all_block_strs(self, t):
         """
@@ -380,7 +398,7 @@ class BlockNode(object):
         self.parent = parent
         self.block = block
         self.children = []
-        self.depth = 0 if parent is None else parent.depth + 1
+        self.depth = 1 if parent is None else parent.depth + 1
 
     def add_child(self, child):
         """Add a child BlockNode"""

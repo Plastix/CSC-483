@@ -3,6 +3,7 @@ messages.txt
 miner.log
 server.log
 peers.txt
+stats.txt
 private_keys.pem
 public_keys.pem
 .idea/
