@@ -4,10 +4,17 @@ import os
 import random
 import threading
 import time
+from typing import List
 
 from blockchain_constants import *
 from key import Keys
 from objects import parse_block, parse_message, Block
+
+
+class MessageQueue(List):
+
+    def __contains__(self, item):
+        return repr(item) in map(repr, self)
 
 
 class Blockchain(object):
@@ -70,7 +77,7 @@ class Blockchain(object):
         self.mining_flag = CONTINUE_MINING
 
         self.messages = {}  # dictionary of Message -> boolean
-        self.message_queue = []
+        self.message_queue = MessageQueue()
 
         self._load_saved_ledger()
 
@@ -149,7 +156,7 @@ class Blockchain(object):
                 return False
 
             # This only checks if messages are in the current blockchain
-            if message in self.messages:
+            if self._is_duplicate_message(message):
                 self.log.debug("Duplicate message rejected (already in blockchain)")
                 return False
 
