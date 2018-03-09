@@ -122,7 +122,8 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        return len(self.message_queue)
+        with self.lock:
+            return len(self.message_queue)
 
     def add_message_str(self, msg_str):
         """
@@ -184,8 +185,7 @@ class Blockchain(object):
             self.log.debug("Block is a duplicate")
             return False
 
-        with self.lock:
-            return self._add_block(block, write_to_ledger, mined_ourselves)
+        return self._add_block(block, write_to_ledger, mined_ourselves)
 
     def add_block_str(self, block_str):
         """
@@ -199,7 +199,6 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-
         return self._add_block_str(block_str, True, False)
 
     def _update_latest_pointers(self, block_node):
@@ -229,52 +228,54 @@ class Blockchain(object):
         :return: Success of adding the Block
         """
 
-        # Block contains at least one duplicate message so don't add it
-        if any(map(self._is_duplicate_message, block.posts)):
-            return False
+        with self.lock:
 
-        if block.is_root():
-            block_node = BlockNode(block, None)
-            self.block_tree = block_node
-            self.log.debug("Added block as root")
-            self._update_latest_pointers(block_node)
-        else:
-            parent_node = self.blocks[block.parent_hash]
-            block_node = BlockNode(block, parent_node)
-            parent_node.add_child(block_node)
-            old_latest = self.latest_block.block.block_hash
+            # Block contains at least one duplicate message so don't add it
+            if any(map(self._is_duplicate_message, block.posts)):
+                return False
 
-            # Check if the new block makes a longer chain and switch to it
-            self._update_latest_pointers(block_node)
+            if block.is_root():
+                block_node = BlockNode(block, None)
+                self.block_tree = block_node
+                self.log.debug("Added block as root")
+                self._update_latest_pointers(block_node)
+            else:
+                parent_node = self.blocks[block.parent_hash]
+                block_node = BlockNode(block, parent_node)
+                parent_node.add_child(block_node)
+                old_latest = self.latest_block.block.block_hash
 
-            # We moved branches, update message table
-            if self.latest_block.block.parent_hash != old_latest:
-                self._reinit_message_table(block.parent_hash)
+                # Check if the new block makes a longer chain and switch to it
+                self._update_latest_pointers(block_node)
 
-        # Add all new posts to message table
-        self._add_block_msgs(block)
-        self._write_new_messages(block)
+                # We moved branches, update message table
+                if self.latest_block.block.parent_hash != old_latest:
+                    self._reinit_message_table(block.parent_hash)
 
-        self.log.debug("Added block to blockchain")
-        self.blocks[block.block_hash] = block_node
+            # Add all new posts to message table
+            self._add_block_msgs(block)
+            self._write_new_messages(block)
 
-        self.total_blocks += 1
+            self.log.debug("Added block to blockchain")
+            self.blocks[block.block_hash] = block_node
 
-        # Update ledger.txt with newly added block
-        if write_to_ledger:
-            # self.log.warning("Writing to ledger!")
-            with open(self.ledger_file, 'a') as ledger:
-                ledger.write(repr(block) + "\n")
+            self.total_blocks += 1
 
-        if self.total_blocks % 10 == 0:
-            self._write_stats_file()
+            # Update ledger.txt with newly added block
+            if write_to_ledger:
+                # self.log.warning("Writing to ledger!")
+                with open(self.ledger_file, 'a') as ledger:
+                    ledger.write(repr(block) + "\n")
 
-        self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
+            if self.total_blocks % 10 == 0:
+                self._write_stats_file()
 
-        if not mined_ourselves:
-            self._update_msg_queue(self.latest_block.block)
+            self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
 
-        return True
+            if not mined_ourselves:
+                self._update_msg_queue(self.latest_block.block)
+
+            return True
 
     def _add_block_msgs(self, block):
         for msg in block.posts:
@@ -355,16 +356,17 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        block_strs = []
+        with self.lock:
+            block_strs = []
 
-        if self.block_tree is not None:
-            next_nodes = [self.block_tree]
-            while len(next_nodes) > 0:
-                cur_node = next_nodes.pop(0)
-                next_nodes += cur_node.children
-                if cur_node.get_time > t:
-                    block_strs.append(repr(cur_node.block))
-        return block_strs
+            if self.block_tree is not None:
+                next_nodes = [self.block_tree]
+                while len(next_nodes) > 0:
+                    cur_node = next_nodes.pop(0)
+                    next_nodes += cur_node.children
+                    if cur_node.get_time > t:
+                        block_strs.append(repr(cur_node.block))
+            return block_strs
 
     def mine(self):
         """
