@@ -63,6 +63,7 @@ class Blockchain(object):
         self.blocks = {}  # dictionary of Block.hash -> BlockNode
         self.block_tree = None  # Tree of BlockNodes, points to the root
         self.latest_block = None  # BlockNode to mine on
+        self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
         self.latest_time = 0  # Timestamp of latest_block
         self.total_blocks = 0  # Total blocks in our blockchain
@@ -189,6 +190,14 @@ class Blockchain(object):
 
         return self._add_block_str(block_str)
 
+    def _update_latest_pointers(self, block_node):
+        if block_node.depth > self._get_current_depth():
+            self.second_longest_chain = self.latest_block
+            self.latest_time = block_node.create_time
+            self.latest_block = block_node
+        elif block_node.depth > self._get_fork_depth():
+            self.second_longest_chain = block_node
+
     def _add_block(self, block, write_to_ledger):
         """
         Adds a Block object to the Blockchain and updates the chain.
@@ -213,19 +222,15 @@ class Blockchain(object):
             block_node = BlockNode(block, None)
             self.block_tree = block_node
             self.log.debug("Added block as root")
-            self.latest_block = block_node
-            self.latest_time = block.create_time
+            self._update_latest_pointers(block_node)
         else:
             parent_node = self.blocks[block.parent_hash]
             block_node = BlockNode(block, parent_node)
             parent_node.add_child(block_node)
-
             old_latest = self.latest_block.block.block_hash
 
             # Check if the new block makes a longer chain and switch to it
-            if block_node.depth > self._get_current_depth():
-                self.latest_block = block_node
-                self.latest_time = block.create_time
+            self._update_latest_pointers(block_node)
 
             # We moved branches, update message table
             if self.latest_block.block.parent_hash != old_latest:
@@ -288,7 +293,10 @@ class Blockchain(object):
         return False
 
     def _get_current_depth(self):
-        return self.latest_block.depth if self.latest_block is not None else -1
+        return self.latest_block.depth if self.latest_block is not None else 0
+
+    def _get_fork_depth(self):
+        return self.second_longest_chain.depth if self.second_longest_chain is not None else 0
 
     def get_new_block_str(self):
         """
@@ -312,10 +320,9 @@ class Blockchain(object):
     def _write_stats_file(self):
         with open(self.stats_file, 'w') as stats:
             stats.write("Readable messages: %s\n" % self.readable_messages)
-            stats.write("Longest chain: %d\n" % self.latest_block.depth)
-            stats.write("Stale blocks: %d\n" % (self.total_blocks - self.latest_block.depth))
-            # TODO Implement longest fork stats
-            stats.write("Longest fork: %d\n" % 0)
+            stats.write("Longest chain: %d\n" % self._get_current_depth())
+            stats.write("Stale blocks: %d\n" % (self.total_blocks - self._get_current_depth()))
+            stats.write("Longest fork: %d\n" % self._get_fork_depth())
 
     def get_all_block_strs(self, t):
         """
