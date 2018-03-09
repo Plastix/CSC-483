@@ -193,7 +193,7 @@ class Blockchain(object):
         This function is called by networking.py.
         """
 
-        return self._add_block_str(block_str, False)
+        return self._add_block_str(block_str, True, False)
 
     def _update_latest_pointers(self, block_node):
         if block_node.depth > self._get_current_depth():
