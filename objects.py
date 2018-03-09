@@ -118,12 +118,16 @@ class Message(object):
         """
         This assumes that the passed in private key is the key of self.recipient
         :param private_key:
-        :return:
+        :return: Decrypted ciphertext if message is 1) private and 2) specific private key is correct. If decryption
+        fails for any reason None is returned.
         """
         # TODO Write a test for this
-        decrypted_bytes = private_key.decypt(self.message, padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH))
+        try:
+            decrypted_bytes = private_key.decrypt(self.message, padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH))
+        except ValueError:
+            return None
 
         return decrypted_bytes.decode()
 

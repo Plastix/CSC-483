@@ -2,6 +2,7 @@ import hashlib
 import unittest
 
 from blockchain_constants import MSGS_PER_BLOCK
+from key import Keys
 from objects import parse_block, parse_message
 
 
@@ -101,6 +102,10 @@ class TestMessageParsing(unittest.TestCase):
         ["parse_bad_message_string", "bad_message_string.txt", False],
     ]
 
+    private = "tests/key_data/private_keys.pem"
+    public = "tests/key_data/public_keys.pem"
+    directory = "tests/key_data/key_directory.pem"
+
     @staticmethod
     def generate_message_test(file, result):
         def test(self):
@@ -146,6 +151,35 @@ class TestMessageParsing(unittest.TestCase):
         with open(TestMessageParsing.message_data_path + 'public_wrong_signature.txt', 'r') as data:
             message = parse_message(data.read())
             self.assertFalse(message.verify_signature())
+
+    def test_get_public_message(self):
+        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+            message = parse_message(data.read())
+
+            key_manager = Keys(TestMessageParsing.private, TestMessageParsing.public, TestMessageParsing.directory)
+            msg_str = message.get_message(key_manager)
+            self.assertEqual("    By sovereignty of nature. First he was", msg_str)
+
+    def test_get_my_private_message(self):
+        self.fail("IMPLEMENT ME")
+
+    def test_get_private_message(self):
+        self.fail("IMPLEMENT ME")
+
+    def test_decrypt_my_private_message(self):
+        self.fail("IMPLEMENT ME")
+
+    def test_decrypt_private_message(self):
+        self.fail("IMPLEMENT ME")
+
+    def test_decrypt_public_message(self):
+        with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:
+            message = parse_message(data.read())
+
+            key_manager = Keys(TestMessageParsing.private, TestMessageParsing.public, TestMessageParsing.directory)
+            msg_str = message.decrypt(key_manager.privatekey_eg)
+            self.assertIsNone(msg_str)
+
 
 
 TestBlockParsing.setup_tests()
