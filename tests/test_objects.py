@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import unittest
 
 from blockchain_constants import MSGS_PER_BLOCK
@@ -121,6 +122,8 @@ class TestMessageParsing(unittest.TestCase):
         ["parse_bad_timestamp", "bad_timestamp.txt", False],
         ["parse_empty_message_string", "empty_message_string.txt", True],
         ["parse_bad_message_string", "bad_message_string.txt", False],
+        ['parse_private_msg_1', "valid_my_private.txt", True],
+        ['parse_private_msg_2', "valid_private.txt", True]
     ]
 
     @staticmethod
@@ -164,6 +167,16 @@ class TestMessageParsing(unittest.TestCase):
             message = parse_message(data.read())
             self.assertTrue(message.verify_signature())
 
+    def test_private_correct_signature(self):
+        with open(TestMessageParsing.message_data_path + 'valid_my_private.txt', 'r') as data:
+            message = parse_message(data.read())
+            self.assertTrue(message.verify_signature())
+
+    def test_private_correct_signature2(self):
+        with open(TestMessageParsing.message_data_path + 'valid_private.txt', 'r') as data:
+            message = parse_message(data.read())
+            self.assertTrue(message.verify_signature())
+
     def test_wrong_signature(self):
         with open(TestMessageParsing.message_data_path + 'public_wrong_signature.txt', 'r') as data:
             message = parse_message(data.read())
@@ -178,16 +191,20 @@ class TestMessageParsing(unittest.TestCase):
             self.assertEqual("    By sovereignty of nature. First he was", msg_str)
 
     def test_get_my_private_message(self):
-        self.fail("IMPLEMENT ME")
+        with open(TestMessageParsing.message_data_path + 'valid_my_private.txt', 'r') as data:
+            message = parse_message(data.read())
+
+            key_manager = get_test_key_manager()
+            msg_str = message.get_message(key_manager)
+            self.assertEqual("TEST_RUA", msg_str)
 
     def test_get_private_message(self):
-        self.fail("IMPLEMENT ME")
+        with open(TestMessageParsing.message_data_path + 'valid_private.txt', 'r') as data:
+            message = parse_message(data.read())
 
-    def test_decrypt_my_private_message(self):
-        self.fail("IMPLEMENT ME")
-
-    def test_decrypt_private_message(self):
-        self.fail("IMPLEMENT ME")
+            key_manager = get_test_key_manager()
+            msg_str = message.get_message(key_manager)
+            self.assertIsNone(msg_str)
 
     def test_decrypt_public_message(self):
         with open(TestMessageParsing.message_data_path + 'valid_public.txt', 'r') as data:

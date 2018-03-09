@@ -88,9 +88,10 @@ class Message(object):
         This method is used to verify the signature on the string.
         :rytpe: bytes
         """
-        string = str(self.create_time).encode() + b':' + hexlify(self.message.encode())
+        msg = self.message.encode() if self.recipient is None else self.message
+        string = str(self.create_time).encode() + b':' + hexlify(msg)
         if self.recipient:
-            string += b':' + hexlify(self.recipient)
+            string += b':' + hexlify(self.recipient.encode())
         return string
 
     def verify_signature(self):
@@ -121,12 +122,14 @@ class Message(object):
         :return: Decrypted ciphertext if message is 1) private and 2) specific private key is correct. If decryption
         fails for any reason None is returned.
         """
-        # TODO Write a test for this
         try:
-            decrypted_bytes = private_key.decrypt(self.message, padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH))
+            decrypted_bytes = private_key.decrypt(self.message,
+                                                  padding.OAEP(
+                                                      mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                                                      algorithm=hashes.SHA1(),
+                                                      label=None))
         except ValueError:
+            # Decryption failed
             return None
 
         return decrypted_bytes.decode()
@@ -139,7 +142,6 @@ class Message(object):
         :param key_manager: Manager object of our private/public keys
         :return:
         """
-        # TODO Write a test for this
         # Return plain-text for public messages
         if self.recipient is None:
             return self.message
@@ -256,7 +258,7 @@ def parse_message(msg_str):
     # Split the message body
     msg_body_parts = msg_parts[MSG_BODY].split(":")
     # Check the body is the right length
-    if not 1 < len(msg_body_parts) < 3:
+    if not 2 <= len(msg_body_parts) <= 3:
         log.info("Error parsing message: Body length %s invalid", len(msg_body_parts))
         return None
 
@@ -282,14 +284,6 @@ def parse_message(msg_str):
         log.info("Error parsing message: Invalid create time %s", create_time)
         return None
 
-    # Get the text of the message
-    message_str = msg_body_parts[MSG_TEXT]
-    try:
-        message_str = unhexlify(message_str).decode()
-    except binascii.Error:
-        log.info("Error parsing message: Invalid message string %s", msg_body_parts[MSG_TEXT])
-        return None
-
     # If the message is private, get the recipient's public key
     if len(msg_body_parts) == 3:
         # Get the recipient's key
@@ -306,6 +300,19 @@ def parse_message(msg_str):
             return None
     else:
         recipient_key = None
+
+    # Get the text of the message
+    message_str = msg_body_parts[MSG_TEXT]
+    try:
+        message_str = unhexlify(message_str)
+
+        # Only decode msg into a string if the message is public
+        if recipient_key is None:
+            message_str = message_str.decode()
+
+    except binascii.Error:
+        log.info("Error parsing message: Invalid message string %s", msg_body_parts[MSG_TEXT])
+        return None
 
     # Get the digital signature of the sender for the message
     message_sig = msg_parts[MSG_SIG]
