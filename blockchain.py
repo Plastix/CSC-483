@@ -1,7 +1,6 @@
 import hashlib
 import logging
 import os
-import queue
 import random
 import threading
 import time
@@ -68,9 +67,10 @@ class Blockchain(object):
         self.latest_time = 0  # Timestamp of latest_block
         self.total_blocks = 0  # Total blocks in our blockchain
         self.readable_messages = 0  # Number of messages we can read
+        self.mining_flag = CONTINUE_MINING
 
         self.messages = {}  # dictionary of Message -> boolean
-        self.message_queue = queue.Queue()
+        self.message_queue = []
 
         self._load_saved_ledger()
 
@@ -104,6 +104,8 @@ class Blockchain(object):
             for block_str in blocks:
                 self._add_block_str(block_str, False)
 
+        self.mining_flag = CONTINUE_MINING
+
     def get_message_queue_size(self):
         """
         Get the number of messages that are queued to be processed.
@@ -113,7 +115,7 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        return self.message_queue.qsize()
+        return len(self.message_queue)
 
     def add_message_str(self, msg_str):
         """
@@ -142,19 +144,22 @@ class Blockchain(object):
 
         # Verify that the message is not a duplicate
         with self.lock:
-            # TODO Don't add a message to the queue that isn't already in the queue
-            # This only checks if messages are in the current blockchain
-            if message in self.messages:
-                self.log.debug("Duplicate message rejected")
+            if message in self.message_queue:
+                self.log.debug("Duplicate message rejected (already in message queue)")
                 return False
 
-        # Add message to message queue
-        self.log.debug("Adding message to message queue!")
-        self.message_queue.put(message)
+            # This only checks if messages are in the current blockchain
+            if message in self.messages:
+                self.log.debug("Duplicate message rejected (already in blockchain)")
+                return False
 
-        return True
+            # Add message to message queue
+            self.log.debug("Adding message to message queue!")
+            self.message_queue.append(message)
 
-    def _add_block_str(self, block_str, write_to_ledger=True):
+            return True
+
+    def _add_block_str(self, block_str, write_to_ledger=True, mined_ourselves=False):
         block = parse_block(block_str)
         if block is None:
             self.log.debug("Block ill-formed")
@@ -173,7 +178,7 @@ class Blockchain(object):
             return False
 
         with self.lock:
-            return self._add_block(block, write_to_ledger)
+            return self._add_block(block, write_to_ledger, mined_ourselves)
 
     def add_block_str(self, block_str):
         """
@@ -188,7 +193,7 @@ class Blockchain(object):
         This function is called by networking.py.
         """
 
-        return self._add_block_str(block_str)
+        return self._add_block_str(block_str, False)
 
     def _update_latest_pointers(self, block_node):
         if block_node.depth > self._get_current_depth():
@@ -201,7 +206,7 @@ class Blockchain(object):
         elif block_node.depth > self._get_fork_depth():
             self.second_longest_chain = block_node
 
-    def _add_block(self, block, write_to_ledger):
+    def _add_block(self, block, write_to_ledger, mined_ourselves):
         """
         Adds a Block object to the Blockchain and updates the chain.
 
@@ -257,6 +262,11 @@ class Blockchain(object):
         if self.total_blocks % 10 == 0:
             self._write_stats_file()
 
+        self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
+
+        if not mined_ourselves:
+            self._update_msg_queue(self.latest_block.block)
+
         return True
 
     def _add_block_msgs(self, block):
@@ -278,8 +288,9 @@ class Blockchain(object):
         messages = []
         while block_node is not None:
             self._add_block_msgs(block_node.block)
-            block_node = block_node.parent
             messages.extend(block_node.block.decrypt_messages(self.keys))
+            self._update_msg_queue(block_node)
+            block_node = block_node.parent
 
         messages.reverse()
         self.readable_messages = len(messages)
@@ -366,14 +377,14 @@ class Blockchain(object):
 
         while True:
             # Make sure we have enough new messages in the queue
-            if self.message_queue.qsize() < MSGS_PER_BLOCK:
+            if self.get_message_queue_size() < MSGS_PER_BLOCK:
                 continue
 
             self.log.debug("Starting to mine a block!")
-            # Note that this is a list of Message objects
-            message_list = [self.message_queue.get() for _ in range(MSGS_PER_BLOCK)]
+            # Definitely not thread safe with more than one miner thread
+            message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
 
-            while True:
+            while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
                 block = Block(nonce=nonce,
                               parent=self.latest_block.block.block_hash,
@@ -383,10 +394,25 @@ class Blockchain(object):
 
                 if block.verify_pow():
                     self.mined_block = block
-                    block_str = repr(block)
-                    self.log.debug("!!! Mined a block !!!\n%s", block_str)
-                    self._add_block(block, write_to_ledger=True)
+                    self.log.debug("!!! Mined a block !!!\n")
+                    self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
+
+            if self.mining_flag == GIVEN_BLOCK:
+                self.log.debug("Mining interrupted - given a block from a peer")
+                self._add_all_to_message_queue(message_list)
+
+            self.mining_flag = CONTINUE_MINING
+
+    def _add_all_to_message_queue(self, msgs):
+        for msg in msgs:
+            if msg not in self.message_queue and msg not in self.latest_block.block.posts:
+                self.message_queue.append(msg)
+
+    def _update_msg_queue(self, block):
+        for msg in block.posts:
+            if msg in self.message_queue:
+                self.message_queue.remove(msg)
 
 
 class BlockNode(object):

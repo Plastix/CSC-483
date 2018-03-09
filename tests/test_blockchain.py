@@ -44,7 +44,6 @@ class TestBlockchain(unittest.TestCase):
         self.blockchain.add_message_str(get_message_str(TestBlockchain.valid_message))
         self.assertEqual(1, self.blockchain.get_message_queue_size())
 
-    @unittest.skip("TODO: Update blockchain to make this test pass")
     def test_message_queue_no_duplicates(self):
         self.blockchain = get_test_blockchain(TestBlockchain.ledger, TestBlockchain.example_messages,
                                               TestBlockchain.stats)
