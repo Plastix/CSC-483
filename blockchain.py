@@ -312,7 +312,7 @@ class Blockchain(object):
 
     def _is_duplicate_message(self, message):
         msg_str = repr(message)
-        if message in self.messages:
+        if msg_str in self.messages:
             return self.messages[msg_str]
         return False
 
