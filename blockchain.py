@@ -273,7 +273,7 @@ class Blockchain(object):
             self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
 
             if not mined_ourselves:
-                self._update_msg_queue(self.latest_block.block)
+                self._update_msg_queue(block)
             else:
                 self.mined_block = block
 
