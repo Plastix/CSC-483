@@ -128,6 +128,15 @@ class Message(object):
         return decrypted_bytes.decode()
 
     def get_message(self, key_manager: Keys):
+        """
+        Returns the plain-text message from the Message object. If the message is public, then its corresponding
+        plain-text is returned. If the message is addressed to one of our private keys, then the ciphertext is decrypted
+        and returned. If the message is private and not addressed to us, then None is returned.
+        :param key_manager: Manager object of our private/public keys
+        :return:
+        """
+        # TODO Write a test for this
+        # Return plain-text for public messages
         if self.recipient is None:
             return self.message
 
@@ -136,9 +145,8 @@ class Message(object):
         if private_key is not None:
             return self.decrypt(private_key)
 
-        # TODO return None unencrypted ciphertext
-        # Return encrypted ciphertext
-        return self.message
+        # Return None for message that we cannot decrypt
+        return None
 
 
 class Block(object):
@@ -217,7 +225,9 @@ class Block(object):
         return int(self.parent_hash, 16) == 0
 
     def decrypt_messages(self, key_manager: Keys):
-        return map(lambda post: post.get_message(key_manager), self.posts)
+        # TODO Write a test for this
+        return filter(lambda post: post is not None,
+                      map(lambda post: post.get_message(key_manager), self.posts))
 
 
 def parse_message(msg_str):

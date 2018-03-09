@@ -31,8 +31,7 @@ class Blockchain(object):
         self.log = logging.getLogger('blockchain')
         self.log.setLevel(logging.DEBUG)
 
-        # TODO rename to miner.log
-        f_handler = logging.FileHandler('blockchain.log')
+        f_handler = logging.FileHandler('miner.log')
         f_handler.setLevel(logging.DEBUG)
 
         con_handler = logging.StreamHandler()
@@ -252,6 +251,7 @@ class Blockchain(object):
 
     def _write_new_messages(self, block):
         with open(self.message_file, 'a') as message_file:
+            message_file.write("\n")
             message_file.write("\n".join(block.decrypt_messages(self.keys)))
 
     def _reinit_message_table(self, parent_hash):
@@ -268,6 +268,7 @@ class Blockchain(object):
         string = '\n'.join(messages)
 
         with open(self.message_file, 'w') as message_file:
+            message_file.write("\n")
             message_file.write(string)
 
     def _is_duplicate_message(self, message):
