@@ -136,6 +136,7 @@ class Message(object):
         if private_key is not None:
             return self.decrypt(private_key)
 
+        # TODO return None unencrypted ciphertext
         # Return encrypted ciphertext
         return self.message
 

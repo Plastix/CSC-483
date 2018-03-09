@@ -1,4 +1,5 @@
 import queue
+import random
 import threading
 import logging
 import traceback
@@ -147,11 +148,12 @@ class Blockchain(object):
                 return False
 
         # Add message to message queue
+        self.log.debug("Adding message to message queue!")
         self.message_queue.put(message)
 
         return True
 
-    def _add_block_str(self, block_str, write_to_ledger):
+    def _add_block_str(self, block_str, write_to_ledger=True):
         block = parse_block(block_str)
         if block is None:
             self.log.debug("Block ill-formed")
@@ -170,15 +172,7 @@ class Blockchain(object):
             return False
 
         with self.lock:
-            success = self._add_block(block)
-
-            # Update ledger.txt with newly added block
-            if success and write_to_ledger:
-                # self.log.warning("Writing to ledger!")
-                with open(self.ledger_file, 'a') as ledger:
-                    ledger.write(repr(block) + "\n")
-
-            return success
+            return self._add_block(block, write_to_ledger)
 
     def add_block_str(self, block_str):
         """
@@ -193,9 +187,9 @@ class Blockchain(object):
         This function is called by networking.py.
         """
 
-        return self._add_block_str(block_str, True)
+        return self._add_block_str(block_str)
 
-    def _add_block(self, block):
+    def _add_block(self, block, write_to_ledger):
         """
         Adds a Block object to the Blockchain and updates the chain.
 
@@ -244,6 +238,12 @@ class Blockchain(object):
         self.log.debug("Added block to blockchain")
         self.blocks[block.block_hash] = block_node
 
+        # Update ledger.txt with newly added block
+        if write_to_ledger:
+            # self.log.warning("Writing to ledger!")
+            with open(self.ledger_file, 'a') as ledger:
+                ledger.write(repr(block) + "\n")
+
         return True
 
     def _add_block_msgs(self, block):
@@ -290,8 +290,13 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
+        # TODO do we need a lock here??
         with self.lock:
-            return repr(self.mined_block) if self.mined_block else None
+            if self.mined_block is not None:
+                string = repr(self.mined_block)
+                self.mined_block = None
+                return string
+            return None
 
     def get_all_block_strs(self, t):
         """
@@ -332,18 +337,27 @@ class Blockchain(object):
 
         while True:
             # Make sure we have enough new messages in the queue
-            # if self.message_queue.qsize() < MSGS_PER_BLOCK:
-            #     continue
-            #
-            # # Note that this is a list of Message objects
-            # message_list = list(self.message_queue.queue)[:10]
-            #
-            #
-            # mined_block = Block(nonce=0,
-            #                     parent=hash(self.latest_block),
-            #                     create_time=time.time(),
-            #                     miner=hashlib.sha256().hexdigest())
-            pass
+            if self.message_queue.qsize() < MSGS_PER_BLOCK:
+                continue
+
+            self.log.debug("Starting to mine a block!")
+            # Note that this is a list of Message objects
+            message_list = [self.message_queue.get() for _ in range(MSGS_PER_BLOCK)]
+
+            while True:
+                nonce = random.getrandbits(NONCE_BIT_LENGTH)
+                block = Block(nonce=nonce,
+                              parent=self.latest_block.block.block_hash,
+                              create_time=time.time(),
+                              miner=str(hashlib.sha256().hexdigest()),
+                              posts=message_list)
+
+                if block.verify_pow():
+                    self.mined_block = block
+                    block_str = repr(block)
+                    self.log.debug("!!! Mined a block !!!\n%s", block_str)
+                    self._add_block(block, write_to_ledger=True)
+                    break
 
 
 class BlockNode(object):
@@ -355,7 +369,7 @@ class BlockNode(object):
     of the Block in question is also considered the hash of the BlockNode.
     """
 
-    def __init__(self, block: Block, parent: object) -> object:
+    def __init__(self, block: Block, parent: object):
         """
         Construct the BlockNode given a Block and the BlockNode of its parent.
 

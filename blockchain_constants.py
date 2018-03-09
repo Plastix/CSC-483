@@ -40,3 +40,5 @@ KEY_DIRECTORY = 'key_directory.pem'
 
 LEDGER_FILE = 'ledger.txt'
 MESSAGE_FILE = 'messages.txt'
+
+NONCE_BIT_LENGTH = 64
