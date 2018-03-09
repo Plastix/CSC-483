@@ -274,6 +274,8 @@ class Blockchain(object):
 
             if not mined_ourselves:
                 self._update_msg_queue(self.latest_block.block)
+            else:
+                self.mined_block = block
 
             return True
 
@@ -391,7 +393,8 @@ class Blockchain(object):
 
             self.log.debug("Starting to mine a block!")
             # Definitely not thread safe with more than one miner thread
-            message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
+            with self.lock:
+                message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
 
             while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
@@ -402,7 +405,6 @@ class Blockchain(object):
                               posts=message_list)
 
                 if block.verify_pow():
-                    self.mined_block = block
                     self.log.debug("!!! Mined a block !!!\n")
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
@@ -414,9 +416,10 @@ class Blockchain(object):
             self.mining_flag = CONTINUE_MINING
 
     def _add_all_to_message_queue(self, msgs):
-        for msg in msgs:
-            if msg not in self.message_queue and msg not in self.latest_block.block.posts:
-                self.message_queue.append(msg)
+        with self.lock:
+            for msg in msgs:
+                if msg not in self.message_queue and msg not in self.latest_block.block.posts:
+                    self.message_queue.append(msg)
 
     def _update_msg_queue(self, block):
         for msg in block.posts:
