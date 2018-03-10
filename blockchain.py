@@ -303,13 +303,13 @@ class Blockchain(object):
 
             self.log.debug("Starting to mine a block!")
 
+            message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
+
             while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
 
                 # Parent hash is 64 '0's if we are mining the genesis block
                 parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 36
-
-                message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
                 block = Block(nonce=nonce,
                               parent=parent_hash,
