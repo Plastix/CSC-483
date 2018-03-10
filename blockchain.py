@@ -418,9 +418,9 @@ class Blockchain(object):
 
     def _add_all_to_message_queue(self, msgs):
         with self.lock:
-            for msg in msgs.reverse():
+            for msg in msgs:
                 if msg not in self.message_queue and msg not in self.latest_block.block.posts:
-                    self.message_queue.insert(0, msg)
+                    self.message_queue.append(msg)
 
     def _update_msg_queue(self, block):
         for msg in block.posts:
