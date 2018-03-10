@@ -8,6 +8,7 @@ private_keys.pem
 public_keys.pem
 !/tests/key_data/private_keys.pem
 !/tests/key_data/public_keys.pem
+!/tests/chain_data/ledger.txt
 .idea/
 __pycache__/
 *.pyc
