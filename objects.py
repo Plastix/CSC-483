@@ -5,6 +5,7 @@ import logging
 import binascii
 from binascii import hexlify, unhexlify
 
+import time
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -32,7 +33,7 @@ class Message(object):
         WARNING: Constructor assumes data passed in is formatted properly and
         does NOT ensure the message is valid with regard to the blockchain.
 
-        :param sender: The message sender's private key
+        :param sender: The message sender's public key
         :param create_time: Time the message was created
         :param message: The text of the message being sent
         :param signatue: A digital signature of the message by its sender
@@ -234,6 +235,10 @@ class Block(object):
         return list(filter(lambda post: post is not None,
                            map(lambda post: post.get_message(key_manager), self.posts)))
 
+    def is_collusion_block(self):
+        return any(map(lambda post: self.is_root() or (post.recipient is None and post.message == COLLUSION_TEXT),
+                       self.posts))
+
 
 def parse_message(msg_str):
     """
@@ -378,6 +383,24 @@ def parse_block(block_str):
     messages = list(filter(lambda x: x is not None, map(parse_message, block_parts[MESSAGE_START:])))
 
     return Block(nonce, parent, created, miner, messages)
+
+
+def get_collusion_message(key_manager: Keys):
+    pub_key = key_manager.get_main_pub_key()
+    sender = hexlify(pub_key).decode()
+    timestamp = time.time()
+    sig_text = str(timestamp).encode() + b":" + hexlify(COLLUSION_TEXT.encode())
+
+    signature = hexlify(key_manager.privatekey_main.sign(
+        sig_text,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    ))
+
+    return Message(sender, timestamp, COLLUSION_TEXT, signature, None)
 
 
 def is_hex(hex_str):

@@ -4,17 +4,10 @@ import os
 import random
 import threading
 import time
-from typing import List
 
 from blockchain_constants import *
 from key import Keys
-from objects import parse_block, parse_message, Block
-
-
-class MessageQueue(List):
-
-    def __contains__(self, item):
-        return repr(item) in map(repr, self)
+from objects import parse_block, get_collusion_message, Block
 
 
 class Blockchain(object):
@@ -75,11 +68,7 @@ class Blockchain(object):
         self.mined_block = None  # latest block mined by this blockchain.
         self.latest_time = 0  # Timestamp of latest_block
         self.total_blocks = 0  # Total blocks in our blockchain
-        self.readable_messages = 0  # Number of messages we can read
         self.mining_flag = CONTINUE_MINING
-
-        self.messages = {}  # dictionary of Message -> boolean
-        self.message_queue = MessageQueue()
 
         self._load_saved_ledger()
 
@@ -125,8 +114,7 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        with self.lock:
-            return len(self.message_queue)
+        return MSG_BUFFER_SIZE
 
     def add_message_str(self, msg_str):
         """
@@ -140,35 +128,7 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-
-        message = parse_message(msg_str)
-
-        # Make sure message string was properly formed
-        if message is None:
-            self.log.debug("Ill-formed message string")
-            return False
-
-        # Verify that the message is properly signed
-        if not message.verify_signature():
-            self.log.debug("Invalidly signed message string")
-            return False
-
-        # Verify that the message is not a duplicate
-        with self.lock:
-            if message in self.message_queue:
-                self.log.debug("Duplicate message rejected (already in message queue)")
-                return False
-
-            # This only checks if messages are in the current blockchain
-            if self._is_duplicate_message(message):
-                self.log.debug("Duplicate message rejected (already in blockchain)")
-                return False
-
-            # Add message to message queue
-            self.log.debug("Adding message to message queue!")
-            self.message_queue.append(message)
-
-            return True
+        return False
 
     def _add_block_str(self, block_str, write_to_ledger=True, mined_ourselves=False):
         block = parse_block(block_str)
@@ -178,6 +138,10 @@ class Blockchain(object):
 
         if not block.verify_pow():
             self.log.debug("Block invalid")
+            return False
+
+        if not block.is_collusion_block():
+            self.log.debug("Ignoring legitimate block!")
             return False
 
         if block.parent_hash not in self.blocks and not block.is_root():
@@ -232,11 +196,6 @@ class Blockchain(object):
         """
 
         with self.lock:
-            # Block contains at least one duplicate message so don't add it
-            if any(map(self._is_duplicate_message, block.posts)):
-                self.log.debug("Rejecting block (Duplicate messages)")
-                return False
-
             if block.is_root():
                 block_node = BlockNode(block, None)
                 self.block_tree = block_node
@@ -246,17 +205,9 @@ class Blockchain(object):
                 parent_node = self.blocks[block.parent_hash]
                 block_node = BlockNode(block, parent_node)
                 parent_node.add_child(block_node)
-                old_latest = self.latest_block.block.block_hash
-
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
-
-                # We moved branches, update message table
-                if self.latest_block.block.parent_hash != old_latest:
-                    self._reinit_message_table(block.parent_hash)
-
                 self.log.debug("Added block to blockchain")
 
-            self._add_block_msgs(block)  # Add all new posts to message table
             self._write_new_messages(block)  # Save new messages to file
             self.blocks[block.block_hash] = block_node
             self.total_blocks += 1
@@ -271,47 +222,14 @@ class Blockchain(object):
 
             self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
 
-            if not mined_ourselves:
-                self._update_msg_queue(block)
-
             return True
-
-    def _add_block_msgs(self, block):
-        for msg in block.posts:
-            self.messages[repr(msg)] = True
 
     def _write_new_messages(self, block):
         with open(self.message_file, 'a') as message_file:
             message_file.write("\n")
 
             messages = block.decrypt_messages(self.keys)
-            self.readable_messages += len(messages)
             message_file.write("\n".join(messages))
-
-    def _reinit_message_table(self, parent_hash):
-        self.messages.clear()
-        block_node = self.blocks[parent_hash]
-
-        messages = []
-        while block_node is not None:
-            self._add_block_msgs(block_node.block)
-            messages.extend(block_node.block.decrypt_messages(self.keys))
-            self._update_msg_queue(block_node)
-            block_node = block_node.parent
-
-        messages.reverse()
-        self.readable_messages = len(messages)
-        string = '\n'.join(messages)
-
-        with open(self.message_file, 'w') as message_file:
-            message_file.write("\n")
-            message_file.write(string)
-
-    def _is_duplicate_message(self, message):
-        msg_str = repr(message)
-        if msg_str in self.messages:
-            return self.messages[msg_str]
-        return False
 
     def _get_current_depth(self):
         return self.latest_block.depth if self.latest_block is not None else 0
@@ -340,9 +258,7 @@ class Blockchain(object):
 
     def _write_stats_file(self):
         with open(self.stats_file, 'w') as stats:
-            stats.write("Readable messages: %s\n" % self.readable_messages)
             stats.write("Longest chain: %d\n" % self._get_current_depth())
-            stats.write("Stale blocks: %d\n" % (self.total_blocks - self._get_current_depth()))
             stats.write("Longest fork: %d\n" % self._get_fork_depth())
 
     def get_all_block_strs(self, t):
@@ -384,19 +300,16 @@ class Blockchain(object):
         """
 
         while True:
-            # Make sure we have enough new messages in the queue
-            if self.get_message_queue_size() < MSGS_PER_BLOCK:
-                continue
 
             self.log.debug("Starting to mine a block!")
-            with self.lock:
-                message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
 
             while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
 
                 # Parent hash is 64 '0's if we are mining the genesis block
                 parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 36
+
+                message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
                 block = Block(nonce=nonce,
                               parent=parent_hash,
@@ -410,25 +323,7 @@ class Blockchain(object):
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
 
-            if self.mining_flag == GIVEN_BLOCK:
-                self.log.debug("Mining interrupted - given a block from a peer")
-                self._add_all_to_message_queue(message_list)
-
             self.mining_flag = CONTINUE_MINING
-
-    def _add_all_to_message_queue(self, msgs):
-        with self.lock:
-            for msg in msgs:
-                if msg not in self.message_queue and msg not in self.latest_block.block.posts:
-                    self.message_queue.append(msg)
-
-    def _update_msg_queue(self, block):
-        for msg in block.posts:
-            if msg in self.message_queue:
-                try:
-                    self.message_queue.remove(msg)
-                except ValueError:
-                    self.log.warning("Attempted to remove msg from message queue (not in queue!)")
 
 
 class BlockNode(object):
