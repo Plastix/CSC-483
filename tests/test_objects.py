@@ -211,7 +211,7 @@ class TestMessageParsing(unittest.TestCase):
             message = parse_message(data.read())
 
             key_manager = get_test_key_manager()
-            msg_str = message.decrypt(key_manager.privatekey_eg)
+            msg_str = message.decrypt(key_manager.privatekey_main)
             self.assertIsNone(msg_str)
 
 

@@ -6,6 +6,7 @@ import hashlib
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 class Keys:
@@ -17,8 +18,8 @@ class Keys:
         self.table = {}  # internal table for my private/public keys
 
         self.pub_table = {}  # table that contains hash of public keys and pem of public keys
-        self.publickey_eg = None
-        self.privatekey_eg = None
+        self.publickey_main = None
+        self.privatekey_main = None
 
         self.init_keys()
 
@@ -45,8 +46,8 @@ class Keys:
                 # Found a valid key pair
                 if public_key is not None and private_key is not None:
                     self.table[public_key_str.decode()] = private_key
-                    self.publickey_eg = public_key
-                    self.privatekey_eg = private_key
+                    self.publickey_main = public_key
+                    self.privatekey_main = private_key
 
         with open(self.key_directory, 'rb') as key_directory:
             data = key_directory.read()
@@ -56,6 +57,12 @@ class Keys:
                 public_key, public_key_str = load_key(data, index, False)
                 public_key_hash = hashlib.sha256(public_key_str).hexdigest()
                 self.pub_table[public_key_hash] = public_key
+
+    def get_main_pub_key(self):
+        return self.publickey_main.public_bytes(
+            encoding=Encoding.PEM,
+            format=PublicFormat.SubjectPublicKeyInfo
+        )
 
 
 def load_key(key_strings, num, private):

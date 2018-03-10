@@ -55,6 +55,8 @@ class Blockchain(object):
                          key_directory=KEY_DIRECTORY
                          )
 
+        self.miner_id = str(hashlib.sha256(self.keys.get_main_pub_key()).hexdigest())
+
         self.message_file = message_file
         self.ledger_file = ledger_file
         self.stats_file = stats_file
@@ -99,7 +101,7 @@ class Blockchain(object):
 
     def _load_saved_ledger(self):
         """
-        Reads saved block strings from local ledger.txt. This stops us from having to requery all peers to get the
+        Reads saved block strings from local ledger.txt. This stops us from having to re-query peers to get the
         entire version history. networking.py uses self.latest_time to do the correct fetch. This time is updated in
         self.add_block_str
         """
@@ -111,6 +113,7 @@ class Blockchain(object):
             for block_str in blocks:
                 self._add_block_str(block_str, False)
 
+        # After loading all blocks from file, tell our miner to continue
         self.mining_flag = CONTINUE_MINING
 
     def get_message_queue_size(self):
@@ -229,9 +232,9 @@ class Blockchain(object):
         """
 
         with self.lock:
-
             # Block contains at least one duplicate message so don't add it
             if any(map(self._is_duplicate_message, block.posts)):
+                self.log.debug("Rejecting block (Duplicate messages)")
                 return False
 
             if block.is_root():
@@ -245,37 +248,31 @@ class Blockchain(object):
                 parent_node.add_child(block_node)
                 old_latest = self.latest_block.block.block_hash
 
-                # Check if the new block makes a longer chain and switch to it
-                self._update_latest_pointers(block_node)
+                self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
 
                 # We moved branches, update message table
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-            # Add all new posts to message table
-            self._add_block_msgs(block)
-            self._write_new_messages(block)
+                self.log.debug("Added block to blockchain")
 
-            self.log.debug("Added block to blockchain")
+            self._add_block_msgs(block)  # Add all new posts to message table
+            self._write_new_messages(block)  # Save new messages to file
             self.blocks[block.block_hash] = block_node
-
             self.total_blocks += 1
 
             # Update ledger.txt with newly added block
             if write_to_ledger:
-                # self.log.warning("Writing to ledger!")
                 with open(self.ledger_file, 'a') as ledger:
                     ledger.write(repr(block) + "\n")
 
-            if self.total_blocks % 10 == 0:
+            if self.total_blocks % STATS_UPDATE_INTERVAL == 0:  # Every few blocks update stats.txt
                 self._write_stats_file()
 
             self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
 
             if not mined_ourselves:
                 self._update_msg_queue(block)
-            else:
-                self.mined_block = block
 
             return True
 
@@ -333,11 +330,11 @@ class Blockchain(object):
 
         This function is called by networking.py.
         """
-        # TODO do we need a lock here??
         with self.lock:
             if self.mined_block is not None:
                 string = repr(self.mined_block)
                 self.mined_block = None
+                self.log.debug("Gave server mined block!")
                 return string
             return None
 
@@ -392,20 +389,24 @@ class Blockchain(object):
                 continue
 
             self.log.debug("Starting to mine a block!")
-            # Definitely not thread safe with more than one miner thread
             with self.lock:
                 message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
 
             while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
+
+                # Parent hash is 64 '0's if we are mining the genesis block
+                parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 64
+
                 block = Block(nonce=nonce,
-                              parent=self.latest_block.block.block_hash,
+                              parent=parent_hash,
                               create_time=time.time(),
-                              miner=str(hashlib.sha256().hexdigest()),
+                              miner=self.miner_id,
                               posts=message_list)
 
                 if block.verify_pow():
                     self.log.debug("!!! Mined a block !!!\n")
+                    self.mined_block = block
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
 
@@ -417,14 +418,17 @@ class Blockchain(object):
 
     def _add_all_to_message_queue(self, msgs):
         with self.lock:
-            for msg in msgs:
+            for msg in msgs.reverse():
                 if msg not in self.message_queue and msg not in self.latest_block.block.posts:
-                    self.message_queue.append(msg)
+                    self.message_queue.insert(0, msg)
 
     def _update_msg_queue(self, block):
         for msg in block.posts:
             if msg in self.message_queue:
-                self.message_queue.remove(msg)
+                try:
+                    self.message_queue.remove(msg)
+                except ValueError:
+                    self.log.warning("Attempted to remove msg from message queue (not in queue!)")
 
 
 class BlockNode(object):
