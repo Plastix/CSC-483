@@ -396,7 +396,7 @@ class Blockchain(object):
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
 
                 # Parent hash is 64 '0's if we are mining the genesis block
-                parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 64
+                parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 36
 
                 block = Block(nonce=nonce,
                               parent=parent_hash,
