@@ -32,7 +32,7 @@ class Blockchain(object):
         f_handler.setLevel(logging.DEBUG)
 
         con_handler = logging.StreamHandler()
-        con_handler.setLevel(logging.INFO)
+        con_handler.setLevel(logging.DEBUG)
 
         # Using Matt's log output format for consistency
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -64,6 +64,7 @@ class Blockchain(object):
 
         self.blocks = {}  # dictionary of Block.hash -> BlockNode
         self.block_tree = None  # Tree of BlockNodes, points to the root
+        self.abandoned = []  # List of abandoned root nodes
         self.latest_block = None  # BlockNode to mine on
         self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
@@ -145,9 +146,9 @@ class Blockchain(object):
             self.log.debug("Ignoring legitimate block!")
             return False
 
-        if block.parent_hash not in self.blocks and not block.is_root():
-            self.log.debug("Block has non-existent parent")
-            return False
+        # if block.parent_hash not in self.blocks and not block.is_root():
+        #     self.log.debug("Block has non-existent parent")
+        #     return False
 
         if block.block_hash in self.blocks:
             self.log.debug("Block is a duplicate")
@@ -202,12 +203,17 @@ class Blockchain(object):
                 self.block_tree = block_node
                 self.log.debug("Added block as root")
                 self._update_latest_pointers(block_node)
-            else:
+            elif block.parent_hash in self.blocks:
                 parent_node = self.blocks[block.parent_hash]
                 block_node = BlockNode(block, parent_node)
                 parent_node.add_child(block_node)
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
-                self.log.debug("Added block to blockchain")
+                self.log.debug(GREEN + "Added as child block to blockchain" + NC)
+            else:
+                block_node = BlockNode(block, None)
+                self.abandoned.append(block_node)
+                self._update_latest_pointers(block_node)
+                self.log.debug(RED + "Added as new root block to blockchain" + NC)
 
             self._write_new_messages(block)  # Save new messages to file
             self.blocks[block.block_hash] = block_node
@@ -261,7 +267,7 @@ class Blockchain(object):
         with open(self.stats_file, 'w') as stats:
             stats.write("Longest chain: %d\n" % self._get_current_depth())
             stats.write("Longest fork: %d\n" % self._get_fork_depth())
-        self.display_tree()
+        # self.display_tree()
 
     def get_all_block_strs(self, t):
         """
