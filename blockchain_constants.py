@@ -1,5 +1,5 @@
 MIN_PEERS = 5
-MAX_PEERS = 10
+MAX_PEERS = 100
 MAX_PEER_FAILURE = 10
 UPDATE_PAD = 60
 WAIT_TIME = 0.10
@@ -9,8 +9,8 @@ MESSAGE_TYPE = 0
 BLOCK_TYPE = 1
 
 DEFAULT_PORT = 50000
-MAIN_HOST = "andersm2-macpro.union.edu"  # Test
-# MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
+# MAIN_HOST = "andersm2-macpro.union.edu"  # Test
+MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
 
 MSG_BUFFER_SIZE = 100
 MSGS_PER_BLOCK = 10

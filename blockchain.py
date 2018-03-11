@@ -181,7 +181,9 @@ class Blockchain(object):
             return False
 
         if block.parent_hash not in self.blocks and not block.is_root():
-            self.log.debug("Block has non-existent parent")
+            self.log.debug("Block has non-existent parent\n\tParent: %s\n\tBlock: %s", block.parent_hash, block.block_hash)
+            self.log.debug("Block messages: %s", "\n".join([post.message for post in block.posts]))
+            # self.log.debug("Block has non-existent parent")
             return False
 
         if block.block_hash in self.blocks:
@@ -233,14 +235,15 @@ class Blockchain(object):
 
         with self.lock:
             # Block contains at least one duplicate message so don't add it
-            if any(map(self._is_duplicate_message, block.posts)):
-                self.log.debug("Rejecting block (Duplicate messages)")
-                return False
+            # if any(map(self._is_duplicate_message, block.posts)):
+            #     self.log.debug("Rejecting block (Duplicate messages)")
+            #     return False
 
             if block.is_root():
                 block_node = BlockNode(block, None)
                 self.block_tree = block_node
-                self.log.debug("Added block as root")
+                # self.log.debug("Added block as root")
+                self.log.debug("Added block as root %s", block.block_hash)
                 self._update_latest_pointers(block_node)
             else:
                 parent_node = self.blocks[block.parent_hash]
@@ -254,7 +257,8 @@ class Blockchain(object):
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug("Added block to blockchain")
+                self.log.debug("Added block to blockchain: %s", block.block_hash)
+                # self.log.debug("Added block to blockchain")
 
             self._add_block_msgs(block)  # Add all new posts to message table
             self._write_new_messages(block)  # Save new messages to file
