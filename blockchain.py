@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import threading
+import subprocess
 import time
 
 from blockchain_constants import *
@@ -31,7 +32,7 @@ class Blockchain(object):
         f_handler.setLevel(logging.DEBUG)
 
         con_handler = logging.StreamHandler()
-        con_handler.setLevel(logging.DEBUG)
+        con_handler.setLevel(logging.INFO)
 
         # Using Matt's log output format for consistency
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -260,6 +261,7 @@ class Blockchain(object):
         with open(self.stats_file, 'w') as stats:
             stats.write("Longest chain: %d\n" % self._get_current_depth())
             stats.write("Longest fork: %d\n" % self._get_fork_depth())
+        self.display_tree()
 
     def get_all_block_strs(self, t):
         """
@@ -301,7 +303,7 @@ class Blockchain(object):
 
         while True:
 
-            self.log.debug("Starting to mine a block!")
+            self.log.info("Thread: %d - "+ RED +"Starting to mine a block!" + NC, threading.get_ident() % 10000)
 
             message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
@@ -318,13 +320,12 @@ class Blockchain(object):
                               posts=message_list)
 
                 if block.verify_pow():
-                    self.log.debug("!!! Mined a block !!!\n")
+                    self.log.info("Thread: %d - " + GREEN + "Mined a block !!!" + NC + "\n", threading.get_ident() % 10000)
                     self.mined_block = block
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
 
             self.mining_flag = CONTINUE_MINING
-
 
 class BlockNode(object):
     """
@@ -355,3 +356,7 @@ class BlockNode(object):
     def get_time(self):
         """Return the Block's time of creation."""
         return self.block.create_time
+
+    @property
+    def get_hash(self):
+        return self.block.block_hash

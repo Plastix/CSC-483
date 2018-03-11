@@ -9,8 +9,8 @@ MESSAGE_TYPE = 0
 BLOCK_TYPE = 1
 
 DEFAULT_PORT = 50000
-MAIN_HOST = "andersm2-macpro.union.edu"  # Test
-# MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
+# MAIN_HOST = "andersm2-macpro.union.edu"  # Test
+MAIN_HOST = "andersm2-vrtower.union.edu"  # Production
 
 MSG_BUFFER_SIZE = 100
 MSGS_PER_BLOCK = 10
@@ -50,3 +50,21 @@ GIVEN_BLOCK = 1
 MINED_BLOCK = 2
 
 COLLUSION_TEXT = "COLLUDE_WITH_ME"
+
+COLLUSION_TEXTS = ["COLLUDE_WITH_ME",
+                   "There once was a professor called Matt,",
+                   "In his office he always was sat.",
+                   "But one day he heard rhymes",
+                   "About Elizabeth, Jonathan, and Lam committing crimes.",
+                   "So he escaped and made like a bat.",
+                   "A team of three was on the hunt,",
+                   "For someone who could pull a stunt.",
+                   "They found the best (computer) scientist in the land,",
+                   "Someone who could really lend a hand.",
+                   "But unfortunately she bailed, so they settled for Matt instead. :("
+                   ]
+
+# Output coloring:
+RED = '\033[0;31m'
+GREEN = '\033[0;32m'
+NC = '\033[0m'

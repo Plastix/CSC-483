@@ -236,7 +236,7 @@ class Block(object):
                            map(lambda post: post.get_message(key_manager), self.posts)))
 
     def is_collusion_block(self):
-        return any(map(lambda post: self.is_root() or (post.recipient is None and post.message == COLLUSION_TEXT),
+        return any(map(lambda post: self.is_root() or (post.recipient is None and post.message in COLLUSION_TEXTS),
                        self.posts))
 
 

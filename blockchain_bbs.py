@@ -7,16 +7,24 @@ from blockchain_constants import *
 from time import sleep
 
 
-def main():
+def main(threads):
     blockchain = Blockchain(LEDGER_FILE, MESSAGE_FILE, STATS_FILE)
-    blockchain_thread = threading.Thread(target=blockchain.mine)
+    bchain_threads = []
+    for i in range(threads):
+        bchain_threads.append(threading.Thread(target=blockchain.mine))
     # blockchain_thread.daemon = True
-    blockchain_thread.start()
+    for thread in bchain_threads:
+        thread.start()
 
-    server = Server(blockchain, True, True, True)
+    server = Server(blockchain, True, True, False)
     server.run()
     # Main thread is server thread
     # This call never returns
 
 
-main()
+if __name__ == "__main__":
+    import sys
+    threads = 1
+    if len(sys.argv) > 1:
+        threads = int(sys.argv[1])
+    main(threads)
