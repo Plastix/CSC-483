@@ -195,7 +195,7 @@ class Block(object):
     def __str__(self):
         posts_str = "\n"
         for post in self.posts:
-            posts_str += "  |--{post}\n".format(post=post)
+            posts_str += "\t{post}\n".format(post=post.message)
         ret_str = "Nonce: {nonce}\n" + \
                   "Parent Hash: {parent}\n" + \
                   "Creation Time: {create}\n" + \

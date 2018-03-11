@@ -333,6 +333,24 @@ class Blockchain(object):
 
             self.mining_flag = CONTINUE_MINING
 
+    def generate_dot_file(self):
+        """
+        Generates a .gv file for displaying the blockchain.
+        """
+        dot_text = "digraph blockchain {"
+        frontier = [self.block_tree] + self.abandoned
+        while frontier != []:
+            parent = frontier.pop(0)
+            children = parent.children
+            for child in children:
+                frontier.append(child)
+                dot_text += "\n\t{c} -> {p};".format(p='<' + str(parent.block) + '>',
+                                                     c='<' + str(child.block) + '>'
+                                                     )
+        dot_text += "\n}"
+        with open("blockchain.gv", "w") as writeFile:
+            writeFile.write(dot_text)
+
 class BlockNode(object):
     """
     Holds a single block in the Blockchain tree.

@@ -10,3 +10,5 @@ public_keys.pem
 __pycache__/
 *.pyc
 *.log
+*.gv
+*.pdf
