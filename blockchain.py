@@ -210,7 +210,7 @@ class Blockchain(object):
                 block_node = BlockNode(block, parent_node)
                 parent_node.add_child(block_node)
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
-                self.log.debug(GREEN + "Added as child block to blockchain" + NC)
+                self.log.debug(GREEN + "Added child block to blockchain - miner: %s" + NC, block.miner_key_hash)
             else:
                 block_node = BlockNode(block, None)
                 self.abandoned.append(block_node)
