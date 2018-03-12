@@ -101,8 +101,11 @@ class Blockchain(object):
             blocks = ledger.read().strip().splitlines()
             if len(blocks) != 0:
                 self.log.debug('Loading blocks from local ledger!')
+            i = 0
             for block_str in blocks:
-                self._add_block_str(block_str, False)
+                i += 1
+                if self._add_block_str(block_str, False):
+                    self.log.info("Loaded block %d/%d %f", i, len(blocks), i/len(blocks)*100)
 
         # After loading all blocks from file, tell our miner to continue
         self.mining_flag = CONTINUE_MINING
@@ -308,12 +311,15 @@ class Blockchain(object):
 
         This function is called in blockchain_bbs.py as a new thread.
         """
-
+        self.log.info("Mining with miner id %s", self.miner_id)
         while True:
 
             self.log.info("Thread: %d - "+ RED +"Starting to mine a block!" + NC, threading.get_ident() % 10000)
 
             message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
+
+            while self.mining_flag != CONTINUE_MINING:
+                pass
 
             while self.mining_flag == CONTINUE_MINING:
                 nonce = random.getrandbits(NONCE_BIT_LENGTH)
