@@ -135,15 +135,15 @@ class Blockchain(object):
     def _add_block_str(self, block_str, write_to_ledger=True, mined_ourselves=False):
         block = parse_block(block_str)
         if block is None:
-            self.log.debug("Block ill-formed")
+            self.log.debug(RED + "Block ill-formed" + NC)
             return False
 
         if not block.verify_pow():
-            self.log.debug("Block invalid")
+            self.log.debug(RED + "Block invalid" + NC)
             return False
 
         if not block.is_collusion_block():
-            self.log.debug("Ignoring legitimate block!")
+            self.log.debug(RED + "Ignoring legitimate block!" + NC)
             return False
 
         # if block.parent_hash not in self.blocks and not block.is_root():
@@ -151,7 +151,7 @@ class Blockchain(object):
         #     return False
 
         if block.block_hash in self.blocks:
-            self.log.debug("Block is a duplicate")
+            self.log.debug(RED + "Block is a duplicate" + NC)
             return False
 
         return self._add_block(block, write_to_ledger, mined_ourselves)
