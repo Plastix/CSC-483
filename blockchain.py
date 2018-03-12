@@ -84,6 +84,8 @@ class Blockchain(object):
 
         self._create_empty_file(self.stats_file)
 
+        self._create_empty_file('peers.txt')
+
     def _create_empty_file(self, file):
         if not os.path.exists(file):
             self.log.debug("Creating empty file %s!", file)

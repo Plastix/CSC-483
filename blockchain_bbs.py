@@ -1,13 +1,24 @@
 import hashlib
 import threading
+import os
 from blockchain import *
 from network import *
 from blockchain_constants import *
 
 from time import sleep
 
+def ensure_keys():
+    """
+    Ensures that our public and private keys exist in the folder.
+
+    :return: None
+    """
+    if not os.path.exists(PRIVATE_KEY_FILE):
+        import generate_user_key
+
 
 def main(threads):
+    ensure_keys()
     blockchain = Blockchain(LEDGER_FILE, MESSAGE_FILE, STATS_FILE)
     bchain_threads = []
     for i in range(threads):
