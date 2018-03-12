@@ -196,6 +196,8 @@ class Blockchain(object):
         :param block: The Block object to add
         :return: Success of adding the Block
         """
+        with self.lock:
+            self.mining_flag = GIVEN_BLOCK
 
         with self.lock:
             if block.is_root():
@@ -227,7 +229,7 @@ class Blockchain(object):
             if self.total_blocks % STATS_UPDATE_INTERVAL == 0:  # Every few blocks update stats.txt
                 self._write_stats_file()
 
-            self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
+            self.mining_flag = CONTINUE_MINING
 
             return True
 
@@ -331,7 +333,7 @@ class Blockchain(object):
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
                     break
 
-            self.mining_flag = CONTINUE_MINING
+            # self.mining_flag = CONTINUE_MINING
 
     def generate_dot_file(self):
         """
