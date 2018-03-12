@@ -232,13 +232,10 @@ class Blockchain(object):
         :param block: The Block object to add
         :return: Success of adding the Block
         """
+        with self.lock:
+            self.mining_flag = GIVEN_BLOCK
 
         with self.lock:
-            # Block contains at least one duplicate message so don't add it
-            # if any(map(self._is_duplicate_message, block.posts)):
-            #     self.log.debug("Rejecting block (Duplicate messages)")
-            #     return False
-
             if block.is_root():
                 block_node = BlockNode(block, None)
                 self.block_tree = block_node
@@ -273,7 +270,7 @@ class Blockchain(object):
             if self.total_blocks % STATS_UPDATE_INTERVAL == 0:  # Every few blocks update stats.txt
                 self._write_stats_file()
 
-            self.mining_flag = MINED_BLOCK if mined_ourselves else GIVEN_BLOCK
+            self.mining_flag = CONTINUE_MINING
 
             if not mined_ourselves:
                 self._update_msg_queue(block)
@@ -417,8 +414,6 @@ class Blockchain(object):
             if self.mining_flag == GIVEN_BLOCK:
                 self.log.debug("Mining interrupted - given a block from a peer")
                 self._add_all_to_message_queue(message_list)
-
-            self.mining_flag = CONTINUE_MINING
 
     def _add_all_to_message_queue(self, msgs):
         with self.lock:
