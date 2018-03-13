@@ -11,7 +11,7 @@ def main():
     blockchain = Blockchain(LEDGER_FILE, MESSAGE_FILE, STATS_FILE)
     blockchain_thread = threading.Thread(target=blockchain.mine)
     # blockchain_thread.daemon = True
-    blockchain_thread.start()
+    # blockchain_thread.start()
 
     server = Server(blockchain, True, True, True)
     server.run()

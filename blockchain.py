@@ -19,6 +19,8 @@ class MessageQueue(List):
 
 class Blockchain(object):
 
+    num_trees = 0
+
     def __init__(self, ledger_file, message_file, stats_file):
         """
         Responsible for initializing a Block object.
@@ -69,7 +71,7 @@ class Blockchain(object):
         self.lock = threading.Lock()
 
         self.blocks = {}  # dictionary of Block.hash -> BlockNode
-        self.block_tree = None  # Tree of BlockNodes, points to the root
+        self.roots = []
         self.latest_block = None  # BlockNode to mine on
         self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
@@ -180,11 +182,11 @@ class Blockchain(object):
             self.log.debug("Block invalid")
             return False
 
-        if block.parent_hash not in self.blocks and not block.is_root():
-            self.log.debug("Block has non-existent parent\n\tParent: %s\n\tBlock: %s", block.parent_hash, block.block_hash)
-            self.log.debug("Block messages: %s", "\n".join([post.message for post in block.posts]))
-            # self.log.debug("Block has non-existent parent")
-            return False
+        # if block.parent_hash not in self.blocks and not block.is_root():
+        #     self.log.debug("Block has non-existent parent\n\tParent: %s\n\tBlock: %s", block.parent_hash, block.block_hash)
+        #     self.log.debug("Block messages: %s", "\n".join([post.message for post in block.posts]))
+        #     # self.log.debug("Block has non-existent parent")
+        #     return False
 
         if block.block_hash in self.blocks:
             self.log.debug("Block is a duplicate")
@@ -217,7 +219,7 @@ class Blockchain(object):
         elif block_node.depth > self._get_fork_depth():
             self.second_longest_chain = block_node
 
-    def _add_block(self, block, write_to_ledger, mined_ourselves):
+    def _add_block(self, block: Block, write_to_ledger, mined_ourselves):
         """
         Adds a Block object to the Blockchain and updates the chain.
 
@@ -236,13 +238,7 @@ class Blockchain(object):
             self.mining_flag = GIVEN_BLOCK
 
         with self.lock:
-            if block.is_root():
-                block_node = BlockNode(block, None)
-                self.block_tree = block_node
-                # self.log.debug("Added block as root")
-                self.log.debug("Added block as root %s", block.block_hash)
-                self._update_latest_pointers(block_node)
-            else:
+            if block.parent_hash in self.blocks:
                 parent_node = self.blocks[block.parent_hash]
                 block_node = BlockNode(block, parent_node)
                 parent_node.add_child(block_node)
@@ -254,8 +250,16 @@ class Blockchain(object):
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug("Added block to blockchain: %s", block.block_hash)
+                self.log.debug("%s added block to blockchain %d", block.miner_key_hash, block_node.tree_num)
                 # self.log.debug("Added block to blockchain")
+            else:
+                block_node = BlockNode(block, None)
+                self.roots.append(block_node)
+                # self.log.debug("Added block as root")
+                self.log.debug("%s added block as root %d", block.miner_key_hash, block_node.tree_num)
+                self._update_latest_pointers(block_node)
+                self.messages.clear()
+                Blockchain.num_trees += 1
 
             self._add_block_msgs(block)  # Add all new posts to message table
             self._write_new_messages(block)  # Save new messages to file
@@ -359,13 +363,12 @@ class Blockchain(object):
         with self.lock:
             block_strs = []
 
-            if self.block_tree is not None:
-                next_nodes = [self.block_tree]
-                while len(next_nodes) > 0:
-                    cur_node = next_nodes.pop(0)
-                    next_nodes += cur_node.children
-                    if cur_node.get_time > t:
-                        block_strs.append(repr(cur_node.block))
+            next_nodes = self.roots
+            while len(next_nodes) > 0:
+                cur_node = next_nodes.pop(0)
+                next_nodes += cur_node.children
+                if cur_node.get_time > t:
+                    block_strs.append(repr(cur_node.block))
             return block_strs
 
     def mine(self):
@@ -439,7 +442,7 @@ class BlockNode(object):
     of the Block in question is also considered the hash of the BlockNode.
     """
 
-    def __init__(self, block: Block, parent: object):
+    def __init__(self, block: Block, parent):
         """
         Construct the BlockNode given a Block and the BlockNode of its parent.
 
@@ -450,6 +453,7 @@ class BlockNode(object):
         self.block = block
         self.children = []
         self.depth = 1 if parent is None else parent.depth + 1
+        self.tree_num = Blockchain.num_trees if parent is None else parent.tree_num
 
     def add_child(self, child):
         """Add a child BlockNode"""
@@ -459,3 +463,7 @@ class BlockNode(object):
     def get_time(self):
         """Return the Block's time of creation."""
         return self.block.create_time
+
+    @property
+    def posts(self):
+        return self.block.posts
