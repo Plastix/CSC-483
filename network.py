@@ -147,6 +147,7 @@ class Server:
             exit()
 
         self.get_updates()
+        time.sleep(5)
 
         # Reset peers
         # t = threading.Thread(target=self.request_peers)

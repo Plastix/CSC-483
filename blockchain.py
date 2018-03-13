@@ -110,10 +110,9 @@ class Blockchain(object):
 
         with open(self.ledger_file, 'r') as ledger:
             blocks = ledger.read().strip().splitlines()
-            if len(blocks) != 0:
-                self.log.debug('Loading blocks from local ledger!')
+            self.log.debug('Loading blocks from local ledger!')
             for block_str in blocks:
-                self._add_block_str(block_str, False)
+                self._add_block_str(block_str.strip(), False)
 
         # After loading all blocks from file, tell our miner to continue
         self.mining_flag = CONTINUE_MINING
