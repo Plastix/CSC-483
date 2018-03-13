@@ -158,7 +158,7 @@ class Message(object):
 
 class Block(object):
 
-    def __init__(self, nonce, parent, create_time, miner, posts):
+    def __init__(self, nonce: str, parent: str, create_time: float, miner: str, posts: list):
         """
         Takes data from a parsed block, deciphers them, and creates a Block.
 
@@ -177,7 +177,7 @@ class Block(object):
         :param miner: Hash of block miner's public key
         :param posts: Posts attached to the block
 
-        :type nonce: int
+        :type nonce: str
         :type parent: str
         :type create_time: float
         :type miner: str

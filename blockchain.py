@@ -5,10 +5,11 @@ import random
 import threading
 import time
 from typing import List
+from binascii import hexlify
 
 from blockchain_constants import *
 from key import Keys
-from objects import parse_block, parse_message, Block
+from objects import parse_block, parse_message, Block, get_collusion_message
 
 
 class MessageQueue(List):
@@ -79,6 +80,7 @@ class Blockchain(object):
         self.total_blocks = 0  # Total blocks in our blockchain
         self.readable_messages = 0  # Number of messages we can read
         self.mining_flag = CONTINUE_MINING
+        self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
         self.messages = {}  # dictionary of Message -> boolean
         self.message_queue = MessageQueue()
@@ -258,13 +260,13 @@ class Blockchain(object):
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug("%s:[%s] added block to blockchain %d", block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 # self.log.debug("Added block to blockchain")
             else:
                 block_node = BlockNode(block, None)
                 self.roots.append(block_node)
                 # self.log.debug("Added block as root")
-                self.log.debug("%s:[%s] added block as root %d", block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 self._update_latest_pointers(block_node)
                 self.messages.clear()
                 Blockchain.num_trees += 1
@@ -400,13 +402,11 @@ class Blockchain(object):
 
             self.log.info("Thread: %d - "+ RED +"Starting to mine a block!" + NC, threading.get_ident() % 10000)
 
-            message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
-
             while self.mining_flag != CONTINUE_MINING:
                 pass
 
             while self.mining_flag == CONTINUE_MINING:
-                nonce = random.getrandbits(NONCE_BIT_LENGTH)
+                nonce = hexlify(str(random.getrandbits(NONCE_BIT_LENGTH)).encode()).decode()
 
                 # Parent hash is 64 '0's if we are mining the genesis block
                 parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 36
@@ -415,7 +415,7 @@ class Blockchain(object):
                               parent=parent_hash,
                               create_time=time.time(),
                               miner=self.miner_id,
-                              posts=message_list)
+                              posts=self.message_list)
 
                 if block.verify_pow():
                     self.log.info("Thread: %d - " + GREEN + "Mined a block !!!" + NC + "\n", threading.get_ident() % 10000)
@@ -424,6 +424,21 @@ class Blockchain(object):
                     break
 
             # self.mining_flag = CONTINUE_MINING
+
+    def _add_all_to_message_queue(self, msgs):
+        with self.lock:
+            for msg in msgs:
+                if msg not in self.message_queue and msg not in self.latest_block.block.posts:
+                    self.message_queue.append(msg)
+
+    def _update_msg_queue(self, block):
+        for msg in block.posts:
+            if msg in self.message_queue:
+                try:
+                    self.message_queue.remove(msg)
+                except ValueError:
+                    self.log.warning(
+                        "Attempted to remove msg from message queue (not in queue!)")
 
     def generate_dot_file(self):
         """
