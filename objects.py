@@ -176,7 +176,7 @@ class Block(object):
         :param miner: Hash of block miner's public key
         :param posts: Posts attached to the block
 
-        :type nonce: int
+        :type nonce: str
         :type parent: str
         :type create_time: float
         :type miner: str

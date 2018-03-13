@@ -4,6 +4,7 @@ import os
 import random
 import threading
 import time
+from binascii import hexlify
 from typing import List
 
 from blockchain_constants import *
@@ -386,7 +387,7 @@ class Blockchain(object):
 
         This function is called in blockchain_bbs.py as a new thread.
         """
-
+        self.log.debug("Miner %s : Mining on thread %d", self.miner_id[:6], threading.get_ident() % 10000)
         while True:
             # Make sure we have enough new messages in the queue
             if self.get_message_queue_size() < MSGS_PER_BLOCK:
@@ -397,7 +398,7 @@ class Blockchain(object):
                 message_list = [self.message_queue.pop(0) for _ in range(MSGS_PER_BLOCK)]
 
             while self.mining_flag == CONTINUE_MINING:
-                nonce = random.getrandbits(NONCE_BIT_LENGTH)
+                nonce = hexlify(str(random.getrandbits(NONCE_BIT_LENGTH)).encode()).decode()
 
                 # Parent hash is 64 '0's if we are mining the genesis block
                 parent_hash = self.latest_block.block.block_hash if self.latest_block is not None else '0' * 36
