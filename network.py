@@ -147,10 +147,11 @@ class Server:
             exit()
 
         self.get_updates()
+        self.blockchain.mining_flag = CONTINUE_MINING
 
         # Reset peers
-        # t = threading.Thread(target=self.request_peers)
-        # t.start()
+        t = threading.Thread(target=self.request_peers)
+        t.start()
 
         # Start broadcast thread
         t = threading.Thread(target=self.broadcast)

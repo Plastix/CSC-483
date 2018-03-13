@@ -23,9 +23,9 @@ def main(threads):
     bchain_threads = []
     for i in range(threads):
         bchain_threads.append(threading.Thread(target=blockchain.mine))
-    # blockchain_thread.daemon = True
     for thread in bchain_threads:
         thread.start()
+    # blockchain_thread.daemon = True
 
     server = Server(blockchain, True, True, False)
     server.run()

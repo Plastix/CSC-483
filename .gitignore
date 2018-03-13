@@ -16,3 +16,4 @@ __pycache__/
 *.gv
 *.pdf
 blockchain/
+ledger_backup.txt

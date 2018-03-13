@@ -79,7 +79,7 @@ class Blockchain(object):
         self.latest_time = 0  # Timestamp of latest_block
         self.total_blocks = 0  # Total blocks in our blockchain
         self.readable_messages = 0  # Number of messages we can read
-        self.mining_flag = CONTINUE_MINING
+        self.mining_flag = GIVEN_BLOCK
         self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
         self.messages = {}  # dictionary of Message -> boolean
@@ -402,7 +402,7 @@ class Blockchain(object):
 
             self.log.info("Thread: %d - "+ RED +"Starting to mine a block!" + NC, threading.get_ident() % 10000)
 
-            while self.mining_flag != CONTINUE_MINING:
+            while self.mining_flag != CONTINUE_MINING or self.latest_block is None:
                 pass
 
             while self.mining_flag == CONTINUE_MINING:
