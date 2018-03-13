@@ -234,6 +234,7 @@ class Blockchain(object):
         :param block: The Block object to add
         :return: Success of adding the Block
         """
+
         with self.lock:
             self.mining_flag = GIVEN_BLOCK
 
