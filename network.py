@@ -146,17 +146,19 @@ class Server:
             self.log.error("Unable to start on port %d" % addr[1])
             exit()
 
+        self.get_updates()
+
         # Reset peers
-        t = threading.Thread(target=self.request_peers)
-        t.start()
+        # t = threading.Thread(target=self.request_peers)
+        # t.start()
 
         # Start broadcast thread
         t = threading.Thread(target=self.broadcast)
         t.start()
 
         # Start update thread
-        t = threading.Thread(target=self.get_updates)
-        t.start()
+        # t = threading.Thread(target=self.get_updates)
+        # t.start()
 
         # Main server loop
         cleanup = 0
@@ -502,9 +504,3 @@ class Server:
                            (threading.get_ident() % 10000, command, cl_host, cl_port, traceback.format_exc()))
 
         conn.close()
-
-
-
-
-
-
