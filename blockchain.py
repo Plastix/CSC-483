@@ -179,7 +179,7 @@ class Blockchain(object):
             return False
 
         if not block.verify_pow():
-            self.log.debug("Block invalid")
+            self.log.debug("Block %s invalid [%s]", block.block_hash, block.parent_hash)
             return False
 
         # if block.parent_hash not in self.blocks and not block.is_root():

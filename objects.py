@@ -208,7 +208,7 @@ class Block(object):
                               )
 
     def __repr__(self):
-        ret_str = hex(self.nonce)[2:] + "|"
+        ret_str = self.nonce + "|"
         ret_str += self.parent_hash + "|"
         ret_str += self.miner_key_hash + "|"
         ret_str += str(self.create_time)
@@ -352,11 +352,11 @@ def parse_block(block_str):
         return None
 
     nonce = block_parts[NONCE]
-    try:
-        nonce = int(nonce, 16)
-    except ValueError:
-        log.info("Error parsing block: Invalid nonce %s", nonce)
-        return None
+    # try:
+    #     nonce = int(nonce, 16)
+    # except ValueError:
+    #     log.info("Error parsing block: Invalid nonce %s", nonce)
+    #     return None
 
     parent = block_parts[PARENT_HASH]
     if not is_hex(parent):
