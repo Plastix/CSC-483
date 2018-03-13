@@ -13,3 +13,4 @@ public_keys.pem
 __pycache__/
 *.pyc
 *.log
+ledger_backup.txt
