@@ -113,14 +113,12 @@ class Blockchain(object):
         """
 
         with open(self.ledger_file, 'r') as ledger:
-            blocks = ledger.read().strip().splitlines()
-            if len(blocks) != 0:
-                self.log.debug('Loading blocks from local ledger!')
+            self.log.debug('Loading blocks from local ledger!')
             i = 0
-            for block_str in blocks:
+            for block_str in ledger:
                 i += 1
-                if self._add_block_str(block_str, False):
-                    self.log.info("Loaded block %d/%d %f", i, len(blocks), i/len(blocks)*100)
+                if self._add_block_str(block_str.strip(), False):
+                    self.log.info("Loaded block %d", i)
 
         # After loading all blocks from file, tell our miner to continue
         self.mining_flag = CONTINUE_MINING
@@ -260,13 +258,13 @@ class Blockchain(object):
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                # self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 # self.log.debug("Added block to blockchain")
             else:
                 block_node = BlockNode(block, None)
                 self.roots.append(block_node)
                 # self.log.debug("Added block as root")
-                self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                # self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 self._update_latest_pointers(block_node)
                 self.messages.clear()
                 Blockchain.num_trees += 1

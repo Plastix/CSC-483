@@ -38,7 +38,7 @@ PUBLIC_KEY_FILE = 'public_keys.pem'
 PRIVATE_KEY_FILE = 'private_keys.pem'
 KEY_DIRECTORY = 'key_directory.pem'
 
-LEDGER_FILE = 'ledger.txt'
+LEDGER_FILE = '/usr/local/VirtualBox-VMs/boggsj/ledger.txt'
 MESSAGE_FILE = 'messages.txt'
 STATS_FILE = 'stats.txt'
 
