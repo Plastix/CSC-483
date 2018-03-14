@@ -21,6 +21,7 @@ class MessageQueue(List):
 class Blockchain(object):
 
     num_trees = 0
+    fork_counter = 0
 
     def __init__(self, ledger_file, message_file, stats_file):
         """
@@ -260,7 +261,7 @@ class Blockchain(object):
                 if self.latest_block.block.parent_hash != old_latest:
                     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork, block_node.depth)
                 # self.log.debug("Added block to blockchain")
             else:
                 block_node = BlockNode(block, None)
@@ -479,6 +480,13 @@ class BlockNode(object):
         self.children = []
         self.depth = 1 if parent is None else parent.depth + 1
         self.tree_num = Blockchain.num_trees if parent is None else parent.tree_num
+        if self.parent is None:
+            self.fork_num = 0
+        elif self.parent.block.is_root():
+            self.fork_num = Blockchain.fork_counter
+            Blockchain.fork_counter += 1
+        else:
+            self.fork_num = self.parent.fork_num
 
     def add_child(self, child):
         """Add a child BlockNode"""
