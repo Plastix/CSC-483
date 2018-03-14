@@ -84,6 +84,9 @@ class Blockchain(object):
         self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
         self.messages = {}  # dictionary of Message -> boolean
+
+        self.rejects = {}
+
         self.message_queue = MessageQueue()
 
         self._load_saved_ledger()
@@ -183,23 +186,29 @@ class Blockchain(object):
     def _add_block_str(self, block_str, write_to_ledger=True, mined_ourselves=False):
         block = parse_block(block_str)
         if block is None:
-            self.log.debug(RED + "Block ill-formed" + NC)
+            self.log.debug(RED + "%s - Block ill-formed" + NC, block.miner_key_hash[:5])
+            self.rejects[block.block_hash] = "ill-formed"
             return False
 
         if not block.verify_pow():
-            self.log.debug(RED + "Block invalid" + NC)
+            self.log.debug(RED + "%s - Block invalid POW" + NC + "\n\t%s", block.miner_key_hash[:5], repr(block))
+            self.rejects[block.block_hash] = "invalid POW"
             return False
 
         if not block.is_collusion_block():
-            self.log.debug(RED + "Ignoring legitimate block!" + NC)
+            self.log.debug(RED + "%s - Ignoring legitimate block!" + NC, block.miner_key_hash[:5])
+            self.rejects[block.block_hash] = "legit block"
             return False
 
-        # if block.parent_hash not in self.blocks and not block.is_root():
-        #     self.log.debug("Block has non-existent parent")
-        #     return False
+        if block.parent_hash not in self.blocks and not block.is_root():
+            self.log.debug("%s - Block has non-existent parent", block.miner_key_hash[:5])
+            if block.parent_hash in self.rejects:
+                self.log.warning("\t" + RED + "Block parent %s in rejected: %s" + NC, block.parent_hash, self.rejects[block.parent_hash])
+            self.rejects[block.block_hash] = "non-existent parent"
+            return False
 
         if block.block_hash in self.blocks:
-            self.log.debug(RED + "Block is a duplicate" + NC)
+            self.log.debug(RED + "%s - Block is a duplicate" + NC, block.miner_key_hash[:5])
             return False
 
         return self._add_block(block, write_to_ledger, mined_ourselves)
