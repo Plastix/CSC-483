@@ -385,25 +385,25 @@ class Server:
             #              (threading.get_ident() % 10000, command, cl_host, cl_port))
 
             if not self.is_peer(cl_host) and command != "PEER_REQUEST":
-                self.log.warning("Thread: %d - Command: %s - From: %s:%d - Warning: Denied, peer not recognized" %
+                self.log.debug("Thread: %d - Command: %s - From: %s:%d - Warning: Denied, peer not recognized" %
                                  (threading.get_ident() % 10000, command, cl_host, cl_port))
                 f_out.write("ERROR Denied, peer not recognized\n")
                 f_out.flush()
 
             elif command == "PEER_REQUEST":
                 if self.is_peer(cl_host):
-                    self.log.warning("Thread: %d - Command: %s - From: %s:%d - Already accepted peer." %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Already accepted peer." %
                                      (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("ACK\n")
                     f_out.flush()
                 elif not self.add_peer(cl_host):
-                    self.log.warning("Thread: %d - Command: %s - From: %s:%d - Warning: Denied, too many active peers." %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Warning: Denied, too many active peers." %
                                      (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("ERROR Denied, too many active peers\n")
                     f_out.flush()
                 else:
                     self.write_peers()
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Accepted peer." %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Accepted peer." %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("ACK\n")
                     f_out.flush()
@@ -413,28 +413,28 @@ class Server:
                 ## Add to queue and send to other peers
                 msg_str = f_in.readline().strip()
                 if not self.accept_non_local_msgs and (cl_host == '' or cl_host == 'localhost' or cl_host == '127.0.0.1'):
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Message ignored" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Message ignored" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     self.broadcast_queue.put((MESSAGE_TYPE, msg_str))
                     f_out.write("ACK\n")
                     f_out.flush()
 
                 elif self.blockchain.get_message_queue_size() >= MSG_BUFFER_SIZE:
-                    self.log.warning("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
                                      (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("FAILURE - Message buffer full, try again later.\n")
                     f_out.flush()
 
                 elif self.blockchain.add_message_str(msg_str):
                     # Only broadcast if valid and not seen
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Received new message to process and broadcast" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Received new message to process and broadcast" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     self.broadcast_queue.put((MESSAGE_TYPE, msg_str))
                     f_out.write("ACK\n")
                     f_out.flush()
 
                 else:
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("FAILURE - Invalid or duplicate\n")
                     f_out.flush()
@@ -443,20 +443,20 @@ class Server:
             elif command == "BLOCK_BROADCAST":
                 block_str = f_in.readline().strip()
                 if not self.accept_blocks:
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Ignored block broadcast" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Ignored block broadcast" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     self.broadcast_queue.put((BLOCK_TYPE, block_str))
                     f_out.write("ACK\n")
                     f_out.flush()
                 elif self.blockchain.add_block_str(block_str):
                     # Only broadcast if valid and not seen
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Received new block to process and broadcast" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Received new block to process and broadcast" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     self.broadcast_queue.put((BLOCK_TYPE, block_str))
                     f_out.write("ACK\n")
                     f_out.flush()
                 else:
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Received duplicate or invalid message, ignoring" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("FAILURE - Invalid or duplicate.\n")
                     f_out.flush()
@@ -470,17 +470,17 @@ class Server:
                     for block_str in block_strs:
                         f_out.write(block_str + "\n")
                         f_out.flush()
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Sent %d blocks to update peer" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Sent %d blocks to update peer" %
                                      (threading.get_ident() % 10000, command, cl_host, cl_port, len(block_strs)))
                 except:
-                    self.log.warning("Thread: %d - Command: %s - From: %s:%d - Warning: Recieved invalid UPDATE_REQUEST" %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Warning: Recieved invalid UPDATE_REQUEST" %
                                   (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write("ERROR Time not recognized")
                     f_out.flush()
 
             elif command == "PEERS_REQUEST":
                 if not self.do_peering:
-                    self.log.info("Thread: %d - Command: %s - From: %s:%d - Ignored peers request." %
+                    self.log.debug("Thread: %d - Command: %s - From: %s:%d - Ignored peers request." %
                                 (threading.get_ident() % 10000, command, cl_host, cl_port))
                     f_out.write(str(0) + "\n")
                     f_out.flush()
@@ -492,10 +492,10 @@ class Server:
                         for peer in self.peers:
                             f_out.write(peer[0] + ":" + str(peer[1]) + "\n")
                             f_out.flush()
-                        self.log.info("Thread: %d - Command: %s - From: %s:%d - Sent %d peers to peer" %
+                        self.log.debug("Thread: %d - Command: %s - From: %s:%d - Sent %d peers to peer" %
                                       (threading.get_ident() % 10000, command, cl_host, cl_port, len(self.peers)))
             else:
-                self.log.warning("Thread: %d - Command: %s - From: %s:%d - Warning Invalid request from peer" %
+                self.log.debug("Thread: %d - Command: %s - From: %s:%d - Warning Invalid request from peer" %
                                  (threading.get_ident() % 10000, command, cl_host, cl_port))
                 f_out.write("ERROR Command not recognized\n")
                 f_out.flush()

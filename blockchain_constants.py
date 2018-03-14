@@ -38,7 +38,7 @@ PUBLIC_KEY_FILE = 'public_keys.pem'
 PRIVATE_KEY_FILE = 'private_keys.pem'
 KEY_DIRECTORY = 'key_directory.pem'
 
-LEDGER_FILE = 'ledger.txt'
+LEDGER_FILE = '/usr/local/VirtualBox-VMs/boggsj/ledger.txt'
 MESSAGE_FILE = 'messages.txt'
 STATS_FILE = 'stats.txt'
 
@@ -48,3 +48,23 @@ STATS_UPDATE_INTERVAL = 10
 CONTINUE_MINING = 0
 GIVEN_BLOCK = 1
 MINED_BLOCK = 2
+
+COLLUSION_TEXT = "COLLUDE_WITH_ME"
+
+COLLUSION_TEXTS = ["COLLUDE_WITH_ME",
+                   "There once was a professor called Matt,",
+                   "In his office he always was sat.",
+                   "But one day he heard rhymes",
+                   "About Elizabeth, Jonathan, and Lam committing crimes.",
+                   "So he escaped and made like a bat.",
+                   "A team of three was on the hunt,",
+                   "For someone who could pull a stunt.",
+                   "They found the best (computer) scientist in the land,",
+                   "Someone who could really lend a hand.",
+                   "But unfortunately she bailed, so they settled for Matt instead. :("
+                   ]
+
+# Output coloring:
+RED = '\033[0;31m'
+GREEN = '\033[0;32m'
+NC = '\033[0m'
