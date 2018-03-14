@@ -187,13 +187,9 @@ class Blockchain(object):
             self.log.debug(RED + "Block invalid" + NC)
             return False
 
-        if not block.is_collusion_block():
-            self.log.debug(RED + "Ignoring legitimate block!" + NC)
+        if block.parent_hash not in self.blocks and not block.is_root():
+            self.log.debug("Block has non-existent parent")
             return False
-
-        # if block.parent_hash not in self.blocks and not block.is_root():
-        #     self.log.debug("Block has non-existent parent")
-        #     return False
 
         if block.block_hash in self.blocks:
             self.log.debug(RED + "Block is a duplicate" + NC)

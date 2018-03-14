@@ -21,10 +21,10 @@ def main(threads):
     ensure_keys()
     blockchain = Blockchain(LEDGER_FILE, MESSAGE_FILE, STATS_FILE)
     bchain_threads = []
-    for i in range(threads):
-        bchain_threads.append(threading.Thread(target=blockchain.mine))
-    for thread in bchain_threads:
-        thread.start()
+    # for i in range(threads):
+    #     bchain_threads.append(threading.Thread(target=blockchain.mine))
+    # for thread in bchain_threads:
+    #     thread.start()
     # blockchain_thread.daemon = True
 
     server = Server(blockchain, True, True, False)
