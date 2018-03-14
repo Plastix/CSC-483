@@ -78,6 +78,7 @@ class Blockchain(object):
         self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
         self.latest_time = 0  # Timestamp of latest_block
+        self.last_update = 0
         self.total_blocks = 0  # Total blocks in our blockchain
         self.readable_messages = 0  # Number of messages we can read
         self.mining_flag = GIVEN_BLOCK
@@ -128,6 +129,7 @@ class Blockchain(object):
                     self.log.info("Loaded block %d/%d %f", i, len(blocks), i/len(blocks)*100)
 
         # After loading all blocks from file, tell our miner to continue
+        self.last_update = self.latest_time
         self.mining_flag = CONTINUE_MINING
 
     def get_message_queue_size(self):
