@@ -73,7 +73,7 @@ class Blockchain(object):
         self.lock = threading.Lock()
 
         self.blocks = {}  # dictionary of Block.hash -> BlockNode
-        self.roots = []
+        self.root = None
         self.latest_block = None  # BlockNode to mine on
         self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
@@ -263,13 +263,13 @@ class Blockchain(object):
 
                 self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork, block_node.depth)
                 # self.log.debug("Added block to blockchain")
-            else:
+            elif block.is_root:
                 block_node = BlockNode(block, None)
-                self.roots.append(block_node)
+                self.root = block_node
                 # self.log.debug("Added block as root")
                 self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 self._update_latest_pointers(block_node)
-                self.messages.clear()
+                # self.messages.clear()
                 Blockchain.num_trees += 1
 
             self._add_block_msgs(block)  # Add all new posts to message table
@@ -375,7 +375,7 @@ class Blockchain(object):
         with self.lock:
             block_strs = []
 
-            next_nodes = self.roots
+            next_nodes = [self.root]
             while len(next_nodes) > 0:
                 cur_node = next_nodes.pop(0)
                 next_nodes += cur_node.children
