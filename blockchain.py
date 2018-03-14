@@ -266,7 +266,7 @@ class Blockchain(object):
                 # if self.latest_block.block.parent_hash != old_latest:
                 #     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork, block_node.depth)
+                self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork_num, block_node.depth)
                 # self.log.debug("Added block to blockchain")
             elif block.is_root:
                 block_node = BlockNode(block, None)
