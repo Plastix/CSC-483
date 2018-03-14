@@ -22,6 +22,7 @@ class Blockchain(object):
 
     num_trees = 0
     fork_counter = 0
+    fork_lengths = {0: 0}
 
     def __init__(self, ledger_file, message_file, stats_file):
         """
@@ -80,13 +81,12 @@ class Blockchain(object):
         self.latest_time = 0  # Timestamp of latest_block
         self.last_update = 0
         self.total_blocks = 0  # Total blocks in our blockchain
-        self.readable_messages = 0  # Number of messages we can read
         self.mining_flag = GIVEN_BLOCK
         self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
-
+        self.max_depth = 0
         self.messages = set()
         self.message_num = 0
-
+        self.last_msg_update = 0
         self.rejects = {}
 
         self.message_queue = MessageQueue()
@@ -224,15 +224,9 @@ class Blockchain(object):
         return self._add_block_str(block_str, True, False)
 
     def _update_latest_pointers(self, block_node):
-        if block_node.depth > self._get_current_depth():
-
-            if block_node.parent != self.latest_block:
-                self.second_longest_chain = self.latest_block
-
-            self.latest_time = block_node.get_time
+        if block_node.depth > self.max_depth:
             self.latest_block = block_node
-        elif block_node.depth > self._get_fork_depth():
-            self.second_longest_chain = block_node
+            self.max_depth = block_node.depth
 
     def _add_block(self, block: Block, write_to_ledger, mined_ourselves):
         """
@@ -258,13 +252,8 @@ class Blockchain(object):
                 parent_node = self.blocks[block.parent_hash]
                 block_node = BlockNode(block, parent_node)
                 parent_node.add_child(block_node)
-                old_latest = self.latest_block.block.block_hash
 
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
-
-                # We moved branches, update message table
-                # if self.latest_block.block.parent_hash != old_latest:
-                #     self._reinit_message_table(block.parent_hash)
 
                 self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork_num, block_node.depth)
                 # self.log.debug("Added block to blockchain")
@@ -296,6 +285,10 @@ class Blockchain(object):
             if not mined_ourselves:
                 self._update_msg_queue(block)
 
+            if time.time() - self.last_msg_update > MSG_UPDATE_DELAY:
+                self._reinit_message_table()
+                self.last_msg_update = time.time()
+
             return True
 
     def _add_block_msgs(self, block):
@@ -307,10 +300,10 @@ class Blockchain(object):
         with open(self.message_file, 'a') as message_file:
             message_file.write("\n".join(list(self.messages)[last_i:]))
 
-    def _reinit_message_table(self, parent_hash):
+    def _reinit_message_table(self):
         self.messages = set()
         self.message_num = 0
-        block_node = self.blocks[parent_hash]
+        block_node = self.blocks[self.latest_block.get_hash]
 
         while block_node is not None:
             self._add_block_msgs(block_node.block)
@@ -328,10 +321,14 @@ class Blockchain(object):
         return repr(message) in self.messages
 
     def _get_current_depth(self):
-        return self.latest_block.depth if self.latest_block is not None else 0
+        if len(Blockchain.fork_lengths) == 0:
+            return 0
+        return max(Blockchain.fork_lengths.values())
 
     def _get_fork_depth(self):
-        return self.second_longest_chain.depth if self.second_longest_chain is not None else 0
+        if len(Blockchain.fork_lengths) < 2:
+            return 0
+        return sorted(Blockchain.fork_lengths.keys(), key=lambda x: Blockchain.fork_lengths[x])[1]
 
     def get_new_block_str(self):
         """
@@ -354,7 +351,7 @@ class Blockchain(object):
 
     def _write_stats_file(self):
         with open(self.stats_file, 'w') as stats:
-            stats.write("Readable messages: %s\n" % self.readable_messages)
+            stats.write("Readable messages: %s\n" % self.message_num)
             stats.write("Longest chain: %d\n" % self._get_current_depth())
             stats.write("Stale blocks: %d\n" % (self.total_blocks - self._get_current_depth()))
             stats.write("Longest fork: %d\n" % self._get_fork_depth())
@@ -403,6 +400,10 @@ class Blockchain(object):
 
             self.log.info("Thread: %d - "+ RED +"Starting to mine a block!" + NC, threading.get_ident() % 10000)
 
+            with self.lock:
+                if self.message_list is None:
+                    self.message_list = [self.message_queue.pop(0) for i in range(MSGS_PER_BLOCK)]
+
             while self.mining_flag != CONTINUE_MINING or self.latest_block is None:
                 pass
 
@@ -422,11 +423,12 @@ class Blockchain(object):
                     self.log.info("Thread: %d - " + GREEN + "Mined a block !!!" + NC + "\n", threading.get_ident() % 10000)
                     self.mined_block = block
                     self._add_block(block, write_to_ledger=True, mined_ourselves=True)
+                    self.message_list = None
                     break
 
             if self.mining_flag == GIVEN_BLOCK:
                 self.log.debug("Mining interrupted - given a block from a peer")
-                self._add_all_to_message_queue(message_list)
+                self._add_all_to_message_queue(self.message_list)
             self.mining_flag = CONTINUE_MINING
 
     def _add_all_to_message_queue(self, msgs):
@@ -449,7 +451,7 @@ class Blockchain(object):
         Generates a .gv file for displaying the blockchain.
         """
         dot_text = "digraph blockchain {"
-        frontier = [self.block_tree] + self.abandoned
+        frontier = [self.root]
         while frontier != []:
             parent = frontier.pop(0)
             children = parent.children
@@ -490,6 +492,11 @@ class BlockNode(object):
             Blockchain.fork_counter += 1
         else:
             self.fork_num = self.parent.fork_num
+
+        if self.fork_num not in Blockchain.fork_lengths:
+            Blockchain.fork_lengths[self.fork_num] = self.depth
+        elif Blockchain.fork_lengths[self.fork_num] < self.depth:
+            Blockchain.fork_lengths[self.fork_num] = self.depth
 
     def add_child(self, child):
         """Add a child BlockNode"""
