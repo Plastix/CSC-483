@@ -21,6 +21,7 @@ class MessageQueue(List):
 class Blockchain(object):
 
     num_trees = 0
+    fork_counter = 0
 
     def __init__(self, ledger_file, message_file, stats_file):
         """
@@ -72,17 +73,22 @@ class Blockchain(object):
         self.lock = threading.Lock()
 
         self.blocks = {}  # dictionary of Block.hash -> BlockNode
-        self.roots = []
+        self.root = None
         self.latest_block = None  # BlockNode to mine on
         self.second_longest_chain = None
         self.mined_block = None  # latest block mined by this blockchain.
         self.latest_time = 0  # Timestamp of latest_block
+        self.last_update = 0
         self.total_blocks = 0  # Total blocks in our blockchain
         self.readable_messages = 0  # Number of messages we can read
         self.mining_flag = GIVEN_BLOCK
         self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
-        self.messages = {}  # dictionary of Message -> boolean
+        self.messages = set()
+        self.message_num = 0
+
+        self.rejects = {}
+
         self.message_queue = MessageQueue()
 
         self._load_saved_ledger()
@@ -121,7 +127,8 @@ class Blockchain(object):
                     self.log.info("Loaded block %d", i)
 
         # After loading all blocks from file, tell our miner to continue
-        # self.mining_flag = CONTINUE_MINING
+        self.last_update = self.latest_time
+        self.mining_flag = CONTINUE_MINING
 
     def get_message_queue_size(self):
         """
@@ -180,19 +187,24 @@ class Blockchain(object):
     def _add_block_str(self, block_str, write_to_ledger=True, mined_ourselves=False):
         block = parse_block(block_str)
         if block is None:
-            self.log.debug(RED + "Block ill-formed" + NC)
+            self.log.debug(RED + "%s - Block ill-formed" + NC, block.miner_key_hash[:5])
+            self.rejects[block.block_hash] = "ill-formed"
             return False
 
         if not block.verify_pow():
-            self.log.debug(RED + "Block invalid" + NC)
+            self.log.debug(RED + "%s - Block invalid POW" + NC + "\n\t%s", block.miner_key_hash[:5], repr(block))
+            self.rejects[block.block_hash] = "invalid POW"
             return False
 
         if block.parent_hash not in self.blocks and not block.is_root():
-            self.log.debug("Block has non-existent parent")
+            self.log.debug("%s - Block has non-existent parent", block.miner_key_hash[:5])
+            if block.parent_hash in self.rejects:
+                self.log.warning("\t" + RED + "Block parent %s in rejected: %s" + NC, block.parent_hash, self.rejects[block.parent_hash])
+            self.rejects[block.block_hash] = "non-existent parent"
             return False
 
         if block.block_hash in self.blocks:
-            self.log.debug(RED + "Block is a duplicate" + NC)
+            self.log.debug(RED + "%s - Block is a duplicate" + NC, block.miner_key_hash[:5])
             return False
 
         return self._add_block(block, write_to_ledger, mined_ourselves)
@@ -254,19 +266,20 @@ class Blockchain(object):
                 # if self.latest_block.block.parent_hash != old_latest:
                 #     self._reinit_message_table(block.parent_hash)
 
-                self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork, block_node.depth)
                 # self.log.debug("Added block to blockchain")
-            else:
+            elif block.is_root:
                 block_node = BlockNode(block, None)
-                self.roots.append(block_node)
+                self.root = block_node
                 # self.log.debug("Added block as root")
                 self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 self._update_latest_pointers(block_node)
-                self.messages.clear()
+                # self.messages.clear()
                 Blockchain.num_trees += 1
 
             self._add_block_msgs(block)  # Add all new posts to message table
-            self._write_new_messages(block)  # Save new messages to file
+            if self.message_num % 10000 == 0:
+                self._write_new_messages(self.message_num-10000)  # Save new messages to file
             self.blocks[block.block_hash] = block_node
             self.total_blocks += 1
 
@@ -287,40 +300,32 @@ class Blockchain(object):
 
     def _add_block_msgs(self, block):
         for msg in block.posts:
-            self.messages[repr(msg)] = True
+            self.messages.add(repr(msg))
+            self.message_num += 1
 
-    def _write_new_messages(self, block):
+    def _write_new_messages(self, last_i):
         with open(self.message_file, 'a') as message_file:
-            message_file.write("\n")
-
-            messages = block.decrypt_messages(self.keys)
-            self.readable_messages += len(messages)
-            message_file.write("\n".join(messages))
+            message_file.write("\n".join(list(self.messages)[last_i:]))
 
     def _reinit_message_table(self, parent_hash):
-        self.messages.clear()
+        self.messages = set()
+        self.message_num = 0
         block_node = self.blocks[parent_hash]
 
-        messages = []
         while block_node is not None:
             self._add_block_msgs(block_node.block)
-            messages.extend(block_node.block.decrypt_messages(self.keys))
             self._update_msg_queue(block_node)
             block_node = block_node.parent
 
-        messages.reverse()
-        self.readable_messages = len(messages)
-        string = '\n'.join(messages)
+        # self.messages.reverse()
+        msg_str = "\n".join(self.messages)
 
         with open(self.message_file, 'w') as message_file:
             message_file.write("\n")
-            message_file.write(string)
+            message_file.write(msg_str)
 
     def _is_duplicate_message(self, message):
-        msg_str = repr(message)
-        if msg_str in self.messages:
-            return self.messages[msg_str]
-        return False
+        return repr(message) in self.messages
 
     def _get_current_depth(self):
         return self.latest_block.depth if self.latest_block is not None else 0
@@ -367,7 +372,7 @@ class Blockchain(object):
         with self.lock:
             block_strs = []
 
-            next_nodes = self.roots
+            next_nodes = [self.root]
             while len(next_nodes) > 0:
                 cur_node = next_nodes.pop(0)
                 next_nodes += cur_node.children
@@ -478,6 +483,13 @@ class BlockNode(object):
         self.children = []
         self.depth = 1 if parent is None else parent.depth + 1
         self.tree_num = Blockchain.num_trees if parent is None else parent.tree_num
+        if self.parent is None:
+            self.fork_num = 0
+        elif self.parent.block.is_root():
+            self.fork_num = Blockchain.fork_counter
+            Blockchain.fork_counter += 1
+        else:
+            self.fork_num = self.parent.fork_num
 
     def add_child(self, child):
         """Add a child BlockNode"""

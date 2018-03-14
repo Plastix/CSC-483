@@ -146,8 +146,9 @@ class Server:
             self.log.error("Unable to start on port %d" % addr[1])
             exit()
 
-        self.get_updates()
-        time.sleep(5)
+        # self.request_peers()
+        self.get_updates(loop=False)
+        # self.blockchain.mining_flag = CONTINUE_MINING
 
         # Reset peers
         # t = threading.Thread(target=self.request_peers)
@@ -158,8 +159,8 @@ class Server:
         t.start()
 
         # Start update thread
-        # t = threading.Thread(target=self.get_updates)
-        # t.start()
+        t = threading.Thread(target=self.get_updates)
+        t.start()
 
         # Main server loop
         cleanup = 0
@@ -279,45 +280,51 @@ class Server:
         self.log.warning("Thread: %d - Complete requesting peers. %d peers currently" %
                          (threading.get_ident() % 10000, len(self.peers) + 1))
 
-    def get_updates(self):
+    def get_updates(self, loop=True):
+        while True:
+            self.log.warning("Thread: %d - Started updating from peers" %
+                             (threading.get_ident() % 10000))
 
-        self.log.warning("Thread: %d - Started updating from peers" %
-                         (threading.get_ident() % 10000))
-
-        bad_peers = []
-        for peer in self.peers:
-            sock = socket(AF_INET, SOCK_STREAM)
-            try:
-                sock = create_connection((peer[0], DEFAULT_PORT), TIMEOUT)
-                f_in = sock.makefile('r')
-                f_out = sock.makefile('w')
-                f_out.write("UPDATE_REQUEST\n")
-                f_out.flush()
-
-                # MODIFICATION: Per Nexus instructions
-                f_out.write("%f\n" % self.blockchain.latest_time) #(self.blockchain.latest_time - UPDATE_PAD))
-                # f_out.write("%f\n" % 0) #(self.blockchain.latest_time - UPDATE_PAD))
-                f_out.flush()
-                time.sleep(WAIT_TIME)
-                count = int(f_in.readline().strip())
-                for i in range(count):
-                    self.blockchain.add_block_str(f_in.readline().strip())
-                sock.close()
-                self.log.info("Thread: %d - Received %d blocks from %s." %
-                                 (threading.get_ident() % 10000, count, peer[0]))
-            except:
-                bad_peers.append(peer[0])
+            bad_peers = []
+            for peer in self.peers:
+                self.log.debug("Updating from peer %s", peer)
+                sock = socket(AF_INET, SOCK_STREAM)
                 try:
+                    sock = create_connection((peer[0], DEFAULT_PORT), TIMEOUT)
+                    f_in = sock.makefile('r')
+                    f_out = sock.makefile('w')
+                    f_out.write("UPDATE_REQUEST\n")
+                    f_out.flush()
+
+                    # MODIFICATION: Per Nexus instructions
+                    f_out.write("%f\n" % self.blockchain.last_update) #(self.blockchain.latest_time - UPDATE_PAD))
+                    # f_out.write("%f\n" % 0) #(self.blockchain.latest_time - UPDATE_PAD))
+                    f_out.flush()
+                    time.sleep(WAIT_TIME)
+                    count = int(f_in.readline().strip())
+                    for i in range(count):
+                        self.blockchain.add_block_str(f_in.readline().strip())
                     sock.close()
+                    self.log.info("Thread: %d - Received %d blocks from %s." %
+                                     (threading.get_ident() % 10000, count, peer[0]))
+                    if loop:
+                        self.blockchain.last_update = time.time()
                 except:
-                    pass
+                    bad_peers.append(peer[0])
+                    try:
+                        sock.close()
+                    except:
+                        pass
 
-        for peer in bad_peers:
-            self.punish_peer(peer)
+            for peer in bad_peers:
+                self.punish_peer(peer)
 
-        self.log.warning("Thread: %d - Completed updating from peers" %
-                         (threading.get_ident() % 10000))
+            self.log.warning("Thread: %d - Completed updating from peers" %
+                             (threading.get_ident() % 10000))
+            if not loop:
+                break
 
+            time.sleep(60)
 
 
     def broadcast(self):
@@ -381,8 +388,8 @@ class Server:
             cl_port = int(cl_addr[1])
 
 
-            #self.log.info("Thread: %d - Command: %s - From: %s:%d" %
-            #              (threading.get_ident() % 10000, command, cl_host, cl_port))
+            self.log.info("Thread: %d - Command: %s - From: %s:%d" %
+                         (threading.get_ident() % 10000, command, cl_host, cl_port))
 
             if not self.is_peer(cl_host) and command != "PEER_REQUEST":
                 self.log.debug("Thread: %d - Command: %s - From: %s:%d - Warning: Denied, peer not recognized" %
