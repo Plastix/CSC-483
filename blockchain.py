@@ -121,7 +121,7 @@ class Blockchain(object):
                     self.log.info("Loaded block %d", i)
 
         # After loading all blocks from file, tell our miner to continue
-        self.mining_flag = CONTINUE_MINING
+        # self.mining_flag = CONTINUE_MINING
 
     def get_message_queue_size(self):
         """
