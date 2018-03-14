@@ -83,7 +83,8 @@ class Blockchain(object):
         self.mining_flag = GIVEN_BLOCK
         self.message_list = [get_collusion_message(self.keys) for _ in range(MSGS_PER_BLOCK)]
 
-        self.messages = {}  # dictionary of Message -> boolean
+        self.messages = set()
+        self.message_num = 0
 
         self.rejects = {}
 
@@ -267,8 +268,8 @@ class Blockchain(object):
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
 
                 # We moved branches, update message table
-                if self.latest_block.block.parent_hash != old_latest:
-                    self._reinit_message_table(block.parent_hash)
+                # if self.latest_block.block.parent_hash != old_latest:
+                #     self._reinit_message_table(block.parent_hash)
 
                 self.log.debug(GREEN + "%s:[%s] added block to fork %d at depth %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.fork, block_node.depth)
                 # self.log.debug("Added block to blockchain")
@@ -282,7 +283,8 @@ class Blockchain(object):
                 Blockchain.num_trees += 1
 
             self._add_block_msgs(block)  # Add all new posts to message table
-            self._write_new_messages(block)  # Save new messages to file
+            if self.message_num % 10000 == 0:
+                self._write_new_messages(self.message_num-10000)  # Save new messages to file
             self.blocks[block.block_hash] = block_node
             self.total_blocks += 1
 
@@ -303,40 +305,32 @@ class Blockchain(object):
 
     def _add_block_msgs(self, block):
         for msg in block.posts:
-            self.messages[repr(msg)] = True
+            self.messages.add(repr(msg))
+            self.message_num += 1
 
-    def _write_new_messages(self, block):
+    def _write_new_messages(self, last_i):
         with open(self.message_file, 'a') as message_file:
-            message_file.write("\n")
-
-            messages = block.decrypt_messages(self.keys)
-            self.readable_messages += len(messages)
-            message_file.write("\n".join(messages))
+            message_file.write("\n".join(list(self.messages)[last_i:]))
 
     def _reinit_message_table(self, parent_hash):
-        self.messages.clear()
+        self.messages = set()
+        self.message_num = 0
         block_node = self.blocks[parent_hash]
 
-        messages = []
         while block_node is not None:
             self._add_block_msgs(block_node.block)
-            messages.extend(block_node.block.decrypt_messages(self.keys))
             self._update_msg_queue(block_node)
             block_node = block_node.parent
 
-        messages.reverse()
-        self.readable_messages = len(messages)
-        string = '\n'.join(messages)
+        # self.messages.reverse()
+        msg_str = "\n".join(self.messages)
 
         with open(self.message_file, 'w') as message_file:
             message_file.write("\n")
-            message_file.write(string)
+            message_file.write(msg_str)
 
     def _is_duplicate_message(self, message):
-        msg_str = repr(message)
-        if msg_str in self.messages:
-            return self.messages[msg_str]
-        return False
+        return repr(message) in self.messages
 
     def _get_current_depth(self):
         return self.latest_block.depth if self.latest_block is not None else 0
