@@ -265,6 +265,7 @@ def parse_message(msg_str):
     # Check the body is the right length
     if not 2 <= len(msg_body_parts) <= 3:
         log.info("Error parsing message: Body length %s invalid", len(msg_body_parts))
+        log.debug("\n\t%s", msg_parts[MSG_BODY])
         return None
 
     # Get the message sender's public key
@@ -353,7 +354,7 @@ def parse_block(block_str):
     """
     block_parts = block_str.split('|')
     if len(block_parts) != 4 + MSGS_PER_BLOCK:
-        log.info("Error parsing block: Length %s invalid", len(block_parts))
+        log.info("%s - Error parsing block: Length %s invalid", block_parts[BLOCK_MINER][:5], len(block_parts))
         return None
 
     nonce = block_parts[NONCE]
