@@ -251,16 +251,16 @@ class Blockchain(object):
                 self._update_latest_pointers(block_node)  # Check if the new block makes a longer chain and switch to it
 
                 # We moved branches, update message table
-                if self.latest_block.block.parent_hash != old_latest:
-                    self._reinit_message_table(block.parent_hash)
+                # if self.latest_block.block.parent_hash != old_latest:
+                #     self._reinit_message_table(block.parent_hash)
 
-                # self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block to blockchain %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 # self.log.debug("Added block to blockchain")
             else:
                 block_node = BlockNode(block, None)
                 self.roots.append(block_node)
                 # self.log.debug("Added block as root")
-                # self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
+                self.log.debug(GREEN + "%s:[%s] added block as root %d" + NC, block.miner_key_hash[:6], time.ctime(block.create_time), block_node.tree_num)
                 self._update_latest_pointers(block_node)
                 self.messages.clear()
                 Blockchain.num_trees += 1
